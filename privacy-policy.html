@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy – Bot Bridge</title>
+<link rel="icon" href="icon.png">
+<style>
+  body { font: 16px/1.6 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; color: #0F172A; }
+  a { color: #4F46E5; } h1 { letter-spacing: -.02em; }
+  .lock { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; margin-bottom: 24px; }
+  .meta { color: #64748B !important; }
+  h1 { font-size: 28px; margin-bottom: 4px; } h2 { font-size: 20px; margin-top: 32px; }
+  .meta { color: #666; font-size: 14px; } nav a { margin-right: 12px; }
+  hr { margin: 48px 0; border: 0; border-top: 1px solid #ddd; }
+  code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<a class="lock" href="./" style="color:inherit;text-decoration:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="32" height="32" aria-hidden="true"><rect width="128" height="128" rx="28" fill="#4F46E5"/><path d="M40 88 C40 56 56 40 88 40" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round"/><circle cx="40" cy="88" r="16" fill="#fff"/><circle cx="88" cy="40" r="16" fill="#fff"/></svg>Bot Bridge</a>
+<nav><a href="#en">English</a><a href="#de">Deutsch</a></nav>
+
+<section id="en">
+<h1>Privacy Policy – Bot Bridge</h1>
+<p class="meta">Chrome extension version 1.0.2 · Last updated: 26 October 2026</p>
+
+<h2>Summary</h2>
+<p><b>The extension does not send any data to the developer or to any server on the internet.</b> It only exchanges data with the bridge app that <em>you</em> run on <em>your own computer</em>, at <code>http://127.0.0.1</code> (localhost). There is no analytics, tracking, advertising or account.</p>
+
+<h2>What the extension does</h2>
+<p>Bot Bridge lets your own AI assistant (for example Grok Bot) control your Chrome browser. Your assistant sends commands to a bridge app (<code>bridge.py</code>) on your computer; the extension picks them up from that bridge and carries them out in Chrome: opening and switching tabs, reading pages, clicking, typing, scrolling and taking screenshots.</p>
+
+<h2>Data the extension handles</h2>
+<p>Only when a command asks for it, the extension reads and passes to the local bridge:</p>
+<ul>
+  <li><b>Web history / tab information:</b> URLs and titles of your open tabs.</li>
+  <li><b>Website content:</b> visible text of a page, a list of its buttons, links and form fields (including values typed in fields; password values are masked), and screenshots of the visible part of a tab.</li>
+</ul>
+<p>Pages can contain personal information (for example names, e-mails or messages shown on a page). Such information is handled only in the same way: passed to your local bridge on request, nowhere else.</p>
+<p>The extension stores locally in Chrome (<code>chrome.storage.local</code>) only its own settings: bridge port, the secret token, the on/off switch and whether you gave consent.</p>
+
+<h2>Who receives the data</h2>
+<ul>
+  <li>Only the bridge app on your own computer (127.0.0.1), which hands it to the AI assistant <em>you</em> chose to connect. What that assistant does with the data is governed by that assistant's own privacy policy.</li>
+  <li>The developer receives <b>nothing</b>. Data is not sold, not shared with third parties, not used for advertising, credit-worthiness or any purpose other than the extension's single purpose.</li>
+</ul>
+
+<h2>Security</h2>
+<ul>
+  <li>The extension connects only to <code>127.0.0.1</code>; this traffic never leaves your computer.</li>
+  <li>Every request requires a secret token that is generated on your computer and that only you have. The bridge rejects requests from websites.</li>
+  <li>Nothing connects until you accept the notice in the extension popup. You can switch the extension off, revoke consent or uninstall it at any time.</li>
+  <li>The extension contains all its code; it does not download or execute remote code.</li>
+</ul>
+
+<h2>Retention and deletion</h2>
+<p>The extension keeps no copies of page content or screenshots. Settings stay in Chrome until you change them or uninstall the extension, which deletes them. A screenshot is only written to disk if the command explicitly gives a file path on your computer.</p>
+
+<h2>Contact</h2>
+<p>Questions or requests: please open an issue at <a href="https://github.com/plutunieer/bot-bridge/issues">https://github.com/plutunieer/bot-bridge/issues</a>. Source code: <a href="https://github.com/plutunieer/bot-bridge">https://github.com/plutunieer/bot-bridge</a></p>
+<p class="meta">Independent project – not affiliated with or endorsed by the makers of Grok or Grok Bot.</p>
+</section>
+
+<hr>
+
+<section id="de" lang="de">
+<h1>Datenschutzerklärung – Bot Bridge</h1>
+<p class="meta">Chrome-Erweiterung Version 1.0.2 · Stand: 26. Oktober 2026</p>
+
+<h2>Kurz gesagt</h2>
+<p><b>Die Erweiterung sendet keine Daten an den Entwickler oder an irgendeinen Server im Internet.</b> Sie tauscht Daten ausschliesslich mit der Bridge-App aus, die <em>du</em> auf <em>deinem eigenen Computer</em> betreibst, unter <code>http://127.0.0.1</code> (localhost). Keine Analyse, kein Tracking, keine Werbung, kein Konto.</p>
+
+<h2>Was die Erweiterung tut</h2>
+<p>Bot Bridge erlaubt deinem eigenen KI-Assistenten (zum Beispiel Grok Bot), deinen Chrome-Browser zu bedienen. Dein Assistent schickt Befehle an eine Bridge-App (<code>bridge.py</code>) auf deinem Computer; die Erweiterung holt sie dort ab und führt sie in Chrome aus: Tabs öffnen und wechseln, Seiten lesen, klicken, tippen, scrollen und Screenshots machen.</p>
+
+<h2>Welche Daten die Erweiterung verarbeitet</h2>
+<p>Nur wenn ein Befehl es verlangt, liest die Erweiterung Folgendes und gibt es an die lokale Bridge weiter:</p>
+<ul>
+  <li><b>Verlauf / Tab-Informationen:</b> URLs und Titel deiner offenen Tabs.</li>
+  <li><b>Website-Inhalte:</b> sichtbarer Text einer Seite, eine Liste ihrer Buttons, Links und Formularfelder (inklusive eingetippter Werte; Passwörter werden maskiert) und Screenshots des sichtbaren Bereichs eines Tabs.</li>
+</ul>
+<p>Webseiten können personenbezogene Daten enthalten (z. B. Namen, E-Mails oder Nachrichten). Diese werden genauso behandelt: nur auf Anfrage an deine lokale Bridge, nirgendwohin sonst.</p>
+<p>Lokal in Chrome (<code>chrome.storage.local</code>) speichert die Erweiterung nur ihre eigenen Einstellungen: Port, geheimen Token, Ein/Aus-Schalter und ob du zugestimmt hast.</p>
+
+<h2>Wer die Daten erhält</h2>
+<ul>
+  <li>Nur die Bridge-App auf deinem eigenen Computer (127.0.0.1), die sie an den KI-Assistenten weitergibt, den <em>du</em> verbunden hast. Was dieser Assistent damit tut, regelt dessen eigene Datenschutzerklärung.</li>
+  <li>Der Entwickler erhält <b>nichts</b>. Daten werden nicht verkauft, nicht an Dritte weitergegeben und nicht für Werbung, Bonitätsprüfung oder andere Zwecke als den einzigen Zweck der Erweiterung verwendet.</li>
+</ul>
+
+<h2>Sicherheit</h2>
+<ul>
+  <li>Die Erweiterung verbindet sich nur mit <code>127.0.0.1</code>; dieser Verkehr verlässt deinen Computer nie.</li>
+  <li>Jede Anfrage braucht einen geheimen Token, der auf deinem Computer erzeugt wird und den nur du hast. Anfragen von Webseiten lehnt die Bridge ab.</li>
+  <li>Nichts verbindet sich, bevor du dem Hinweis im Popup zustimmst. Du kannst die Erweiterung jederzeit ausschalten, die Zustimmung widerrufen oder sie deinstallieren.</li>
+  <li>Die Erweiterung enthält ihren gesamten Code selbst; sie lädt und führt keinen Code von aussen aus.</li>
+</ul>
+
+<h2>Speicherdauer und Löschung</h2>
+<p>Die Erweiterung behält keine Kopien von Seiteninhalten oder Screenshots. Einstellungen bleiben in Chrome, bis du sie änderst oder die Erweiterung deinstallierst (dabei werden sie gelöscht). Ein Screenshot wird nur dann auf die Festplatte geschrieben, wenn der Befehl ausdrücklich einen Dateipfad auf deinem Computer angibt.</p>
+
+<h2>Kontakt</h2>
+<p>Fragen oder Anliegen: bitte ein Issue eröffnen unter <a href="https://github.com/plutunieer/bot-bridge/issues">https://github.com/plutunieer/bot-bridge/issues</a>. Quellcode: <a href="https://github.com/plutunieer/bot-bridge">https://github.com/plutunieer/bot-bridge</a></p>
+<p class="meta">Unabhängiges Projekt – nicht verbunden mit den Herstellern von Grok oder Grok Bot.</p>
+</section>
+</body>
+</html>
