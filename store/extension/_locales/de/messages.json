@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Bot Bridge"
+  },
+  "extDescription": {
+    "message": "Lässt deinen KI-Assistenten (z. B. Grok Bot) dein Chrome über eine Bridge auf deinem Computer steuern. Erweiterung nur zu 127.0.0.1."
+  }
+}

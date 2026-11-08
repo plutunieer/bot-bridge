@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Bot Bridge</title>
+<style>
+  :root { --accent: #4F46E5; --accent-dark: #4338CA; --tint: #EEF2FF; --ink: #0F172A; --muted: #64748B; --line: #E2E8F0; --surface: #F8FAFC; --ok: #047857; --ok-bg: #ECFDF5; --err: #B91C1C; --err-bg: #FEF2F2; }
+  * { box-sizing: border-box; }
+  body { font: 13px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; width: 340px; max-height: 600px; overflow-y: auto; color: var(--ink); background: #fff; }
+  header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  header img { width: 28px; height: 28px; }
+  .brand { flex: 1; }
+  .brand b { display: block; font-size: 15px; letter-spacing: -0.01em; }
+  .brand span { color: var(--muted); font-size: 12px; }
+  main { padding: 14px 16px 16px; }
+  .status { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface); color: var(--muted); font-weight: 500; }
+  .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #94A3B8; flex: none; }
+  .status.ok { background: var(--ok-bg); color: var(--ok); } .status.ok::before { background: #10B981; box-shadow: 0 0 0 3px rgba(16,185,129,.18); }
+  .status.err { background: var(--err-bg); color: var(--err); } .status.err::before { background: #EF4444; }
+  label.f { display: block; margin: 14px 0 5px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  input[type=text], input[type=number], input[type=password] { width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; color: var(--ink); background: #fff; outline: none; }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,.15); }
+  .grid { display: grid; grid-template-columns: 84px 1fr; gap: 10px; }
+  button#save { width: 100%; height: 38px; margin-top: 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: 600 13px/1 inherit; font-family: inherit; cursor: pointer; }
+  button#save:hover { background: var(--accent-dark); }
+  .opt { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .meta { margin-top: 12px; color: var(--muted); font-size: 11.5px; }
+  .meta p { margin: 4px 0; }
+  .switch { position: relative; width: 38px; height: 22px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: #CBD5E1; border-radius: 22px; transition: .2s; cursor: pointer; }
+  .slider:before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider:before { transform: translateX(16px); }
+  .consent { margin-bottom: 12px; padding: 12px; border-radius: 10px; background: var(--tint); border: 1px solid #C7D2FE; font-size: 12px; }
+  .consent b.t { display: block; font-size: 13px; margin-bottom: 6px; }
+  .consent ul { margin: 0; padding-left: 16px; } .consent li { margin: 3px 0; }
+  .consent label { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; font-weight: 600; cursor: pointer; }
+  .consent input { accent-color: var(--accent); margin-top: 2px; }
+  .consented { margin-bottom: 10px; font-size: 12px; color: var(--muted); }
+  .consented a { color: var(--accent); margin-left: 4px; }
+  .meta a { color: var(--accent); text-decoration: none; font-weight: 500; }
+</style>
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="">
+    <div class="brand"><b>Bot Bridge</b><span>Browser ⇄ local bridge · 127.0.0.1</span></div>
+    <label class="switch" title="On / Off"><input id="enabled" type="checkbox"><span class="slider"></span></label>
+  </header>
+  <main>
+<!--CONSENT-->
+    <div id="status" class="status">…</div>
+    <div class="grid">
+      <div><label class="f" for="port">Port</label><input id="port" type="number" min="1" max="65535" value="8765"></div>
+      <div><label class="f" for="token">Token</label><input id="token" type="password" placeholder="Paste token · Token einfügen" autocomplete="off"></div>
+    </div>
+    <button id="save">Save · Speichern</button>
+<!--EVAL-->
+    <div class="opt"><span>Allow JavaScript <code>eval</code> · erlauben</span>
+      <label class="switch"><input id="allowEval" type="checkbox"><span class="slider"></span></label></div>
+<!--/EVAL-->
+    <div class="meta">
+      <p id="last"></p>
+<!--STORE-NOTE-->
+    </div>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

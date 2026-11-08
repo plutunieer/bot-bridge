@@ -1,0 +1,49 @@
+bridge token: [redacted]
+PASS no token -> 401
+PASS wrong token -> 401
+PASS web origin -> 403
+PASS status: not connected yet
+extension id: odfbccpmnnicnpgaehddkjgmdepdjldd version: 1.0.2 permissions: ['tabs', 'scripting', 'storage', 'alarms']
+PASS store build: no connection before consent  -> {"ok": true, "bridge_version": "1.0.2", "extension_connected": false, "seconds_since_last_poll": null, "extension": {}, "queued_commands": 0}
+PASS extension connects to bridge  -> {"ok": true, "bridge_version": "1.0.2", "extension_connected": true, "seconds_since_last_poll": 0.1, "extension": {"version": "1.0.2"}, "queued_commands": 0}
+PASS popup shows Connected  -> Connected · Verbunden (127.0.0.1:8765)
+PASS badge shows ON  -> ON
+PASS open_url  -> {"ok": true, "cmd": "open_url", "result": {"tab_id": 1984511601, "window_id": 1984511597, "url": "http://127.0.0.1:8811/index.html", "title": "GBB Test Page", "active": true, "status": "complete"}}
+PASS get_page text  -> 4 elements
+PASS get_page labels input
+PASS click by index + selector
+PASS wait_for  -> {"ok": true, "cmd": "wait_for", "result": {"found": true, "waited_ms": 757}}
+PASS scroll  -> {"ok": true, "cmd": "scroll", "result": {"max_y": 2554, "x": 0, "y": 2554}}
+PASS screenshot saved via bridge (PNG)  -> {"ok": true, "cmd": "screenshot", "result": {"tab_id": 1984511601, "url": "http://127.0.0.1:8811/index.html", "format": "png", "data_base64": null, "saved_path": "/tmp/gbbhome-a_a_gr3n/shot.png", "not
+PASS screenshot base64 PNG  -> 8660 b64 chars
+PASS type + submit  -> {"ok": true, "cmd": "type", "result": {"submitted": true, "typed": true, "value": "hello bridge", "tab_id": 1984511601, "url": "http://127.0.0.1:8811/result.html?q=hello+bridge"}}
+PASS CLI send get_page after submit  -> Result
+
+You searched for: hello bridge
+PASS client/gbb shorthand  -> {
+  "ok": true,
+  "cmd": "get_page",
+  "result": {
+    "elements": [],
+    "scroll": {
+      "max_y": 0,
+      "viewport
+PASS client/gbb-curl.sh  -> {"ok": true, "cmd": "list_tabs", "result": {"tabs": [{"tab_id": 1984511598, "window_id": 1984511597, "url": "about:blank
+PASS back  -> {"ok": true, "cmd": "back", "result": {"tab_id": 1984511601, "window_id": 1984511597, "url": "http://127.0.0.1:8811/index.html", "title": "GBB Test Page", "active": true, "status": "complete"}}
+PASS press_key Enter (form submitted)  -> {"ok": true, "cmd": "get_page", "result": {"elements": [], "scroll": {"max_y": 0, "viewport_h": 720, "x": 0, "y": 0}, "text": "Result\n\nYou searched for: via enter", "text_length": 35, "text_truncate
+PASS store build: eval command absent  -> {"ok": false, "cmd": "eval", "error": "unknown cmd 'eval'. Known: ping, list_tabs, open_url, navigate, activate_tab, close_tab, screenshot, get_page, click, type, press_key, scroll, wait_for, back, forward, reload"}
+PASS store build: no eval toggle in popup
+PASS forward/reload  -> {"ok": true, "cmd": "reload", "result": {"tab_id": 1984511601, "window_id": 1984511597, "url": "http://127.0.0.1:8811/result.html?q=via+enter", "title
+PASS navigate
+PASS list_tabs  -> 5
+PASS activate_tab
+PASS close_tab
+PASS unknown cmd -> error
+   idling 75s to test MV3 service-worker keep-alive…
+PASS still connected after 75s idle  -> {"ok": true, "cmd": "ping", "result": {"pong": true, "version": "1.0.2"}}
+PASS real website (example.com) get_page  -> {"ok": true, "cmd": "get_page", "result": {"elements": [{"href": "https://iana.org/help/example-domains", "in_viewport": true, "index": 0, "label": "", "role": "link", "tag": "a", "text": "Learn more"}], "scroll": {"max_y": 55, "viewport_h": 720, "x": 0, "y": 0}, "text": "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for tes
+PASS bridge sees extension switched off  -> {"ok": true, "bridge_version": "1.0.2", "extension_connected": false, "seconds_since_last_poll": null, "extension": {"version": "1.0.2"}, "queued_commands": 0}
+PASS command refused while off (503)  -> {"ok": false, "error": "extension not connected (is Chrome open and the extension enabled with the right port/token?)"}
+PASS badge cleared when off  -> ''
+
+35/35 checks passed

@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Café Finder – Demo</title>
+<style>
+ body{margin:0;font-family:"Noto Sans","DejaVu Sans",sans-serif;background:#f6f4ef;color:#1d1d1f}
+ header{background:#6B4226;color:#fff;padding:18px 40px;font-size:22px;font-weight:700;letter-spacing:.3px}
+ header span{font-weight:400;opacity:.8;font-size:15px;margin-left:12px}
+ main{max-width:860px;margin:32px auto;padding:0 24px}
+ form{display:flex;gap:10px;margin-bottom:24px}
+ input{flex:1;font-size:17px;padding:12px 14px;border:1px solid #c9c4b8;border-radius:10px;background:#fff}
+ button{font-size:16px;padding:12px 22px;border:0;border-radius:10px;background:#6B4226;color:#fff;cursor:pointer}
+ .card{background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;justify-content:space-between;align-items:center}
+ .card h3{margin:0 0 4px;font-size:18px}.card p{margin:0;color:#666;font-size:14px}
+ .rating{background:#F5EDE6;color:#6B4226;font-weight:700;border-radius:8px;padding:6px 10px}
+ .hint{color:#777;font-size:14px}
+</style></head><body>
+<header>☕ Café Finder <span>demo page</span></header>
+<main>
+ <form id="f"><input id="q" name="q" placeholder="Neighbourhood, e.g. Altstadt" aria-label="Search cafés"><button>Search</button></form>
+ <div id="results"><p class="hint">Search a neighbourhood to see cafés.</p></div>
+</main>
+<script>
+const data=[["Café Lindenhof","Altstadt · quiet terrace, great croissants","4.8"],["Kaffee Rösterei 23","Altstadt · single-origin pour-over","4.7"],["Bücher & Bohnen","Altstadt · bookshop café, Wi-Fi","4.6"],["Seeblick Bar","Altstadt · lake view, open till 22:00","4.4"]];
+document.getElementById('f').addEventListener('submit',e=>{e.preventDefault();const q=document.getElementById('q').value.trim();
+ document.getElementById('results').innerHTML='<p class="hint">'+data.length+' cafés found for “'+q+'”</p>'+data.map(d=>'<div class="card"><div><h3>'+d[0]+'</h3><p>'+d[1]+'</p></div><span class="rating">★ '+d[2]+'</span></div>').join('');});
+</script></body></html>
