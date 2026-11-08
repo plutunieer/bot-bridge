@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+test/last_screenshot.png
+store/assets/raw/
+.DS_Store

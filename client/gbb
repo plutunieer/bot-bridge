@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# gbb - tiny client for the Bot Bridge (macOS / Linux).
+#   gbb status
+#   gbb get_page
+#   gbb click index=3
+#   gbb type index=1 text="hello world" submit=true
+#   gbb '{"cmd":"open_url","url":"https://example.com"}'
+# Token and port are read from ~/.bot-bridge/config.json by bridge.py.
+DIR="$(cd "$(dirname "$0")" && pwd)"
+BRIDGE="${GBB_BRIDGE:-$DIR/../bridge/bridge.py}"
+PY="$(command -v python3 || command -v python)"
+case "$1" in
+  status|token|serve|new-token) exec "$PY" "$BRIDGE" "$@" ;;
+  "") echo "usage: gbb <cmd> [key=value ...] | gbb '<json>' | gbb status" >&2; exit 2 ;;
+  *) exec "$PY" "$BRIDGE" send "$@" ;;
+esac

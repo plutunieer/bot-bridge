@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bot Bridge – let your AI assistant use your own Chrome</title>
-<meta name="description" content="Bot Bridge lets your own AI assistant open tabs, read pages, click and type in your Chrome – privately, through a bridge app on your computer (127.0.0.1 only).">
+<meta name="description" content="Bot Bridge lets your own AI assistant open tabs, read pages, click and type in your Chrome. The extension talks only to a bridge on 127.0.0.1. Your assistant may process results off this device.">
 <link rel="icon" href="icon.png">
 <style>
   :root { --accent:#4F46E5; --accent-dark:#4338CA; --tint:#EEF2FF; --ink:#0F172A; --muted:#64748B; --line:#E2E8F0; }
@@ -50,7 +50,7 @@
 
   <section class="hero">
     <h1>Your AI assistant,<br>in <span>your own Chrome.</span></h1>
-    <p class="lead">Bot Bridge lets your own AI assistant open tabs, read pages, click and type in your browser – privately, through a small bridge app on your computer.</p>
+    <p class="lead">Bot Bridge lets your own AI assistant open tabs, read pages, click and type in your browser, through a small bridge app on your computer. The extension talks only to that bridge. Your assistant may process the results off this device.</p>
     <div class="btns">
       <a class="btn primary" href="https://github.com/plutunieer/bot-bridge/releases/latest/download/bridge-app.zip">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download the bridge</a>
@@ -60,18 +60,18 @@
   </section>
 
   <div class="grid">
-    <div class="card"><div class="n">1</div><b>Run the bridge</b><p>Unzip <code>bridge-app.zip</code> and start <code>python3 bridge.py serve</code>. It shows a port and a secret token.</p></div>
+    <div class="card"><div class="n">1</div><b>Run the bridge</b><p>Unzip <code>bridge-app.zip</code> and start <code>python3 bridge.py serve</code>. It shows the port. Show the token with <code>bridge.py token</code> in a terminal you control.</p></div>
     <div class="card"><div class="n">2</div><b>Add the extension</b><p>Install Bot Bridge in Chrome, agree to the notice, paste port and token. The icon shows <strong>ON</strong>.</p></div>
     <div class="card"><div class="n">3</div><b>Ask your assistant</b><p>Your assistant sends commands like <code>get_page</code>, <code>click</code> or <code>type</code> – the extension does the rest.</p></div>
   </div>
 
-  <h2>Private by design</h2>
-  <p style="color:var(--muted);margin:0">The extension only talks to the bridge on <code>127.0.0.1</code>. Nothing is sent to the developer or any server.</p>
+  <h2>Direct link is local. The assistant may not be.</h2>
+  <p style="color:var(--muted);margin:0">The extension only talks to the bridge on <code>127.0.0.1</code>. It does not send data to the developer. There is no tracking. Your chosen assistant receives the results and may process them off this device. <a href="privacy-policy.html#limited-use">Limited Use</a>: Bot Bridge uses this data only so that assistant can operate your browser, the extension's single purpose. It is not sold or used for advertising or credit decisions.</p>
   <div class="feats">
-    <span class="feat">✓ Localhost only</span><span class="feat">✓ Secret token</span><span class="feat">✓ Consent first</span><span class="feat">✓ On/off switch</span><span class="feat">✓ No tracking</span><span class="feat">✓ Open source (MIT)</span>
+    <span class="feat">✓ Direct link: 127.0.0.1</span><span class="feat">✓ Secret token</span><span class="feat">✓ Consent first</span><span class="feat">✓ On/off switch</span><span class="feat">✓ No tracking</span><span class="feat">✓ Open source (MIT)</span>
   </div>
 
-  <div class="de"><b>Deutsch:</b> Bot Bridge lässt deinen eigenen KI-Assistenten dein Chrome bedienen – Tabs öffnen, Seiten lesen, klicken, tippen. Privat über eine Bridge-App auf deinem Computer (nur 127.0.0.1). <a href="https://github.com/plutunieer/bot-bridge#deutsch">Anleitung auf Deutsch</a> · <a href="privacy-policy.html#de">Datenschutzerklärung</a></div>
+  <div class="de"><b>Deutsch:</b> Bot Bridge lässt deinen eigenen KI-Assistenten dein Chrome bedienen – Tabs öffnen, Seiten lesen, klicken, tippen. Die Erweiterung spricht nur mit der Bridge auf 127.0.0.1 und sendet nichts an den Entwickler. Der Assistent kann Resultate ausserhalb des Geräts verarbeiten. <a href="https://github.com/plutunieer/bot-bridge#deutsch">Anleitung auf Deutsch</a> · <a href="privacy-policy.html#de">Datenschutzerklärung</a></div>
 
   <footer>
     <span>© 2026 plutunieer · MIT License</span>

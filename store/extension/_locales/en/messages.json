@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Bot Bridge"
+  },
+  "extDescription": {
+    "message": "Lets your AI assistant (e.g. Grok Bot) control this Chrome through a bridge on your computer. Extension traffic is 127.0.0.1 only."
+  }
+}

@@ -1,0 +1,15 @@
+<!doctype html><html><head><meta charset="utf-8"><title>GBB Test Page</title></head>
+<body style="font-family:sans-serif">
+<h1>Bot Bridge Test</h1>
+<p id="counter">Clicks: 0</p>
+<button id="inc" onclick="let p=document.getElementById('counter');p.textContent='Clicks: '+(parseInt(p.textContent.split(': ')[1])+1)">Increment</button>
+<form action="result.html" method="get">
+  <label for="q">Search term</label> <input id="q" name="q" placeholder="Type here">
+  <button type="submit">Go</button>
+</form>
+<label for="pw">Password</label> <input id="pw" name="pw" type="password" value="fixture-password-value">
+<p><a href="result.html?q=link">Link to result page</a></p>
+<div id="late"></div>
+<script>setTimeout(()=>{document.getElementById('late').innerHTML='<span id="appeared">I appeared later</span>'},1500)</script>
+<div style="height:3000px"></div><p id="bottom">Bottom of page</p>
+</body></html>

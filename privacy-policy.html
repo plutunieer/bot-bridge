@@ -22,42 +22,79 @@
 
 <section id="en">
 <h1>Privacy Policy – Bot Bridge</h1>
-<p class="meta">Chrome extension version 1.0.2 · Last updated: 26 October 2026</p>
+<p class="meta">Chrome extension version 1.0.3 · Last updated: 8 November 2026</p>
 
 <h2>Summary</h2>
-<p><b>The extension does not send any data to the developer or to any server on the internet.</b> It only exchanges data with the bridge app that <em>you</em> run on <em>your own computer</em>, at <code>http://127.0.0.1</code> (localhost). There is no analytics, tracking, advertising or account.</p>
+<p>The extension's own network traffic goes only to the bridge app you run on your computer, at <code>http://127.0.0.1</code>. The extension does not send page data to the developer. There is no analytics, tracking, advertising, or account.</p>
+<p><b>This is not an end-to-end offline guarantee.</b> The bridge gives command results to the AI assistant you chose. That assistant may process data off your device under its own privacy policy. Read that policy before you connect an assistant.</p>
 
 <h2>What the extension does</h2>
-<p>Bot Bridge lets your own AI assistant (for example Grok Bot) control your Chrome browser. Your assistant sends commands to a bridge app (<code>bridge.py</code>) on your computer; the extension picks them up from that bridge and carries them out in Chrome: opening and switching tabs, reading pages, clicking, typing, scrolling and taking screenshots.</p>
+<p>Bot Bridge lets your own AI assistant (for example Grok Bot) control your Chrome browser. Your assistant sends commands to a bridge app (<code>bridge.py</code>) on your computer. After you consent, the extension picks those commands up from the bridge and carries them out: opening and switching tabs, reading pages, clicking, typing, scrolling, and taking screenshots.</p>
+<p>Nothing is fetched from the bridge until you tick the notice in the popup. You can switch the extension off, revoke consent, or uninstall it. Revoking consent or switching off stops new commands. An update that changes the notice asks you to agree again.</p>
 
 <h2>Data the extension handles</h2>
-<p>Only when a command asks for it, the extension reads and passes to the local bridge:</p>
+<p>Only when a command asks for it, the extension reads data and passes it to the local bridge:</p>
 <ul>
-  <li><b>Web history / tab information:</b> URLs and titles of your open tabs.</li>
-  <li><b>Website content:</b> visible text of a page, a list of its buttons, links and form fields (including values typed in fields; password values are masked), and screenshots of the visible part of a tab.</li>
+  <li><b>Web history:</b> URLs and titles of your open tabs, and the URL and title returned with later commands.</li>
+  <li><b>Website content:</b> visible text, a list of buttons, links, and form fields (including values), and screenshots of the visible part of a tab.</li>
+  <li><b>Information that can be inside that content.</b> The extension does not have a separate health, finance, location, or mail feature, and it does not call the geolocation API. It also does not filter page content. A page, form, or screenshot can therefore include, when you ask the assistant to read or capture it:
+    <ul>
+      <li>personally identifiable information, such as names, email addresses, phone numbers, usernames, or account numbers</li>
+      <li>personal communications visible on a page, such as email or chat text</li>
+      <li>financial or payment details visible on a page or in a form field</li>
+      <li>health information visible on a page</li>
+      <li>location text, such as an address on a page or in a URL</li>
+      <li>authentication information, described below</li>
+    </ul>
+  </li>
 </ul>
-<p>Pages can contain personal information (for example names, e-mails or messages shown on a page). Such information is handled only in the same way: passed to your local bridge on request, nowhere else.</p>
-<p>The extension stores locally in Chrome (<code>chrome.storage.local</code>) only its own settings: bridge port, the secret token, the on/off switch and whether you gave consent.</p>
+<p>The extension does not record a separate stream of your own clicks, mouse movements, or keystrokes. It performs the actions a command requests and returns the result of those actions.</p>
+
+<h2>Password masking, and what it does not cover</h2>
+<p>When the extension reads a page (<code>get_page</code>) or returns the result of a click or type on a field, it replaces the value with <code>•••</code> only for:</p>
+<ul>
+  <li><code>input</code> fields whose type is <code>password</code>, and</li>
+  <li>fields whose autocomplete token is <code>current-password</code> or <code>new-password</code>.</li>
+</ul>
+<p>That masking does <b>not</b> apply to:</p>
+<ul>
+  <li>the rest of the page text, including a password or code the page shows as ordinary text</li>
+  <li>screenshots (they show whatever is on screen, including a password the page has revealed)</li>
+  <li>other fields, including usernames, one-time codes, and card numbers</li>
+  <li>the text of a type command. Your assistant supplies that text so the extension can enter it. The result shown back for a masked field is <code>•••</code>, but the command itself contains what you asked the assistant to type</li>
+</ul>
+
+<h2>What is stored</h2>
+<p>In Chrome (<code>chrome.storage.local</code>) the extension stores only its own settings: the bridge port, the bridge token, the on/off switch, and your consent (including the version of the notice you accepted). The bridge token is a secret that authorizes control of your browser. It is not a password for a website, and it is stored so the extension can reconnect. It is not encrypted by the extension beyond Chrome's local storage and the permissions on the bridge config file.</p>
+<p>The bridge stores the same token in <code>~/.bot-bridge/config.json</code> (or an existing <code>~/.grok-chrome-bridge/config.json</code> from version 1.0), mode 600, in a directory mode 700 when the operating system allows it. <code>bridge.py serve</code> does not print the token. <code>bridge.py token</code> and <code>bridge.py new-token</code> print it to that terminal. Do not redirect those two commands into a service log. If a log from an older version contains a line <code>Token:</code>, delete the log and run <code>new-token</code>.</p>
 
 <h2>Who receives the data</h2>
 <ul>
-  <li>Only the bridge app on your own computer (127.0.0.1), which hands it to the AI assistant <em>you</em> chose to connect. What that assistant does with the data is governed by that assistant's own privacy policy.</li>
-  <li>The developer receives <b>nothing</b>. Data is not sold, not shared with third parties, not used for advertising, credit-worthiness or any purpose other than the extension's single purpose.</li>
+  <li>The bridge on your computer receives command results and makes them available to the AI assistant you chose to connect. That handoff is the extension's single purpose. The assistant may then process the data off your device. What it does is governed by that assistant's privacy policy, which this policy does not control and does not certify.</li>
+  <li>The developer does not receive page contents, screenshots, tab lists, or the bridge token. The developer does not sell this data and does not use it for advertising, creditworthiness, or lending.</li>
 </ul>
+<p>Saying that the developer does not receive the data is not a claim that the data stays on your device after your assistant receives it.</p>
+
+<h2 id="limited-use">Limited Use</h2>
+<p>Bot Bridge complies with the Chrome Web Store User Data Policy, including the Limited Use requirements, for data this extension handles.</p>
+<p>That data is used only to carry out the browser actions you request through your chosen assistant, and to keep the connection you configured (port, token, on/off, consent). The extension transfers command results only to the bridge on your computer so that assistant can perform those actions. The transfer is necessary for this single purpose and happens only after the consent in the popup. The data is not sold. It is not used or transferred by this extension for advertising, creditworthiness, or lending. The developer does not read page contents.</p>
+<p>This statement describes Bot Bridge. It does not certify how a third-party assistant later uses data under that assistant's own policy.</p>
 
 <h2>Security</h2>
 <ul>
-  <li>The extension connects only to <code>127.0.0.1</code>; this traffic never leaves your computer.</li>
-  <li>Every request requires a secret token that is generated on your computer and that only you have. The bridge rejects requests from websites.</li>
-  <li>Nothing connects until you accept the notice in the extension popup. You can switch the extension off, revoke consent or uninstall it at any time.</li>
-  <li>The extension contains all its code; it does not download or execute remote code.</li>
+  <li>The extension connects only to <code>127.0.0.1</code>. The bridge listens only on <code>127.0.0.1</code>.</li>
+  <li>The loopback connection is ordinary HTTP. Chrome's User Data FAQ (question 16) says the secure-handling requirement does not apply to transmissions between an extension and a native program on the same computer. This policy does not claim that the hop is encrypted. Other programs on the computer that have the token can send commands. TLS is not a substitute for keeping the token private.</li>
+  <li>Every request needs the token. The bridge rejects a <code>Host</code> header that is not loopback, and it rejects web-page <code>Origin</code> values. Those checks do not stop a local program that already has the token.</li>
+  <li>The Chrome Web Store package contains its code. Commands are data (a command name, URL, selector, or text) passed to functions in the package. The store package has no <code>eval</code> and does not load remote scripts. URLs it opens are <code>http</code>, <code>https</code>, <code>file</code>, or <code>about:blank</code>.</li>
+  <li>The developer build in the source tree can run an optional <code>eval</code> command. That build is not the store package. Leave it off unless you mean to run arbitrary JavaScript in the page.</li>
+  <li>A screenshot is written to disk only when the command names a file path. That write uses your user account and is not limited to a single folder. Do not point it at a path you do not want replaced.</li>
 </ul>
 
 <h2>Retention and deletion</h2>
-<p>The extension keeps no copies of page content or screenshots. Settings stay in Chrome until you change them or uninstall the extension, which deletes them. A screenshot is only written to disk if the command explicitly gives a file path on your computer.</p>
+<p>The extension does not keep copies of page content or screenshots. Settings stay in Chrome until you change them, revoke consent, or uninstall the extension, which deletes the extension's storage. Delete the bridge config file to remove the token from disk. Rotate it with <code>bridge.py new-token</code> if it may have been logged.</p>
 
 <h2>Contact</h2>
-<p>Questions or requests: please open an issue at <a href="https://github.com/plutunieer/bot-bridge/issues">https://github.com/plutunieer/bot-bridge/issues</a>. Source code: <a href="https://github.com/plutunieer/bot-bridge">https://github.com/plutunieer/bot-bridge</a></p>
+<p>Questions or requests: open an issue at <a href="https://github.com/plutunieer/bot-bridge/issues">https://github.com/plutunieer/bot-bridge/issues</a>. Source code: <a href="https://github.com/plutunieer/bot-bridge">https://github.com/plutunieer/bot-bridge</a></p>
 <p class="meta">Independent project – not affiliated with or endorsed by the makers of Grok or Grok Bot.</p>
 </section>
 
@@ -65,39 +102,76 @@
 
 <section id="de" lang="de">
 <h1>Datenschutzerklärung – Bot Bridge</h1>
-<p class="meta">Chrome-Erweiterung Version 1.0.2 · Stand: 26. Oktober 2026</p>
+<p class="meta">Chrome-Erweiterung Version 1.0.3 · Stand: 8. November 2026</p>
 
 <h2>Kurz gesagt</h2>
-<p><b>Die Erweiterung sendet keine Daten an den Entwickler oder an irgendeinen Server im Internet.</b> Sie tauscht Daten ausschliesslich mit der Bridge-App aus, die <em>du</em> auf <em>deinem eigenen Computer</em> betreibst, unter <code>http://127.0.0.1</code> (localhost). Keine Analyse, kein Tracking, keine Werbung, kein Konto.</p>
+<p>Der eigene Netzwerkverkehr der Erweiterung geht nur an die Bridge-App, die du auf deinem Computer betreibst, unter <code>http://127.0.0.1</code>. Die Erweiterung sendet Seitendaten nicht an den Entwickler. Keine Analyse, kein Tracking, keine Werbung, kein Konto.</p>
+<p><b>Das ist keine Garantie, dass alles auf dem Gerät bleibt.</b> Die Bridge gibt Befehlsresultate an den KI-Assistenten weiter, den du gewählt hast. Dieser Assistent kann Daten ausserhalb deines Geräts verarbeiten, nach seiner eigenen Datenschutzerklärung. Lies diese, bevor du einen Assistenten verbindest.</p>
 
 <h2>Was die Erweiterung tut</h2>
-<p>Bot Bridge erlaubt deinem eigenen KI-Assistenten (zum Beispiel Grok Bot), deinen Chrome-Browser zu bedienen. Dein Assistent schickt Befehle an eine Bridge-App (<code>bridge.py</code>) auf deinem Computer; die Erweiterung holt sie dort ab und führt sie in Chrome aus: Tabs öffnen und wechseln, Seiten lesen, klicken, tippen, scrollen und Screenshots machen.</p>
+<p>Bot Bridge erlaubt deinem eigenen KI-Assistenten (zum Beispiel Grok Bot), deinen Chrome-Browser zu bedienen. Dein Assistent schickt Befehle an eine Bridge-App (<code>bridge.py</code>) auf deinem Computer. Nach deiner Zustimmung holt die Erweiterung diese Befehle ab und führt sie aus: Tabs öffnen und wechseln, Seiten lesen, klicken, tippen, scrollen und Screenshots machen.</p>
+<p>Es wird nichts von der Bridge geholt, bevor du den Hinweis im Popup ankreuzt. Du kannst die Erweiterung ausschalten, die Zustimmung widerrufen oder sie deinstallieren. Widerruf oder Ausschalten stoppt neue Befehle. Ein Update, das den Hinweis ändert, verlangt eine erneute Zustimmung.</p>
 
 <h2>Welche Daten die Erweiterung verarbeitet</h2>
-<p>Nur wenn ein Befehl es verlangt, liest die Erweiterung Folgendes und gibt es an die lokale Bridge weiter:</p>
+<p>Nur wenn ein Befehl es verlangt, liest die Erweiterung Daten und gibt sie an die lokale Bridge weiter:</p>
 <ul>
-  <li><b>Verlauf / Tab-Informationen:</b> URLs und Titel deiner offenen Tabs.</li>
-  <li><b>Website-Inhalte:</b> sichtbarer Text einer Seite, eine Liste ihrer Buttons, Links und Formularfelder (inklusive eingetippter Werte; Passwörter werden maskiert) und Screenshots des sichtbaren Bereichs eines Tabs.</li>
+  <li><b>Webverlauf:</b> URLs und Titel deiner offenen Tabs sowie URL und Titel, die spätere Befehle zurückgeben.</li>
+  <li><b>Website-Inhalte:</b> sichtbarer Text, eine Liste von Buttons, Links und Formularfeldern (inklusive Werten) und Screenshots des sichtbaren Bereichs eines Tabs.</li>
+  <li><b>Angaben, die in diesen Inhalten stehen können.</b> Die Erweiterung hat keine eigene Gesundheits-, Finanz-, Standort- oder Mail-Funktion und ruft die Geolocation-API nicht auf. Sie filtert Seiteninhalte auch nicht. Eine Seite, ein Formular oder ein Screenshot kann deshalb Folgendes enthalten, wenn du den Assistenten bittest, es zu lesen oder aufzunehmen:
+    <ul>
+      <li>personenbezogene Angaben wie Namen, E-Mail-Adressen, Telefonnummern, Benutzernamen oder Kontonummern</li>
+      <li>persönliche Kommunikation, die auf einer Seite sichtbar ist, etwa E-Mail- oder Chat-Text</li>
+      <li>Finanz- oder Zahlungsangaben, die auf einer Seite oder in einem Feld sichtbar sind</li>
+      <li>Gesundheitsangaben, die auf einer Seite sichtbar sind</li>
+      <li>Standorttext, etwa eine Adresse auf einer Seite oder in einer URL</li>
+      <li>Authentifizierungsangaben, wie unten beschrieben</li>
+    </ul>
+  </li>
 </ul>
-<p>Webseiten können personenbezogene Daten enthalten (z. B. Namen, E-Mails oder Nachrichten). Diese werden genauso behandelt: nur auf Anfrage an deine lokale Bridge, nirgendwohin sonst.</p>
-<p>Lokal in Chrome (<code>chrome.storage.local</code>) speichert die Erweiterung nur ihre eigenen Einstellungen: Port, geheimen Token, Ein/Aus-Schalter und ob du zugestimmt hast.</p>
+<p>Die Erweiterung zeichnet keinen eigenen Strom deiner Klicks, Mausbewegungen oder Tastatureingaben auf. Sie führt die Aktionen aus, die ein Befehl verlangt, und gibt das Resultat dieser Aktionen zurück.</p>
+
+<h2>Passwort-Maskierung und ihre Grenzen</h2>
+<p>Beim Lesen einer Seite (<code>get_page</code>) und im Resultat von Klick oder Tippen ersetzt die Erweiterung den Wert durch <code>•••</code> nur bei:</p>
+<ul>
+  <li><code>input</code>-Feldern mit Typ <code>password</code> und</li>
+  <li>Feldern, deren Autocomplete-Token <code>current-password</code> oder <code>new-password</code> ist.</li>
+</ul>
+<p>Diese Maskierung gilt <b>nicht</b> für:</p>
+<ul>
+  <li>den übrigen Seitentext, auch wenn dort ein Passwort oder Code als normaler Text steht</li>
+  <li>Screenshots (sie zeigen, was auf dem Bildschirm steht, inklusive eines von der Seite eingeblendeten Passworts)</li>
+  <li>andere Felder, inklusive Benutzernamen, Einmalcodes und Kartennummern</li>
+  <li>den Text eines Tipp-Befehls. Dein Assistent liefert diesen Text, damit die Erweiterung ihn eintragen kann. Das zurückgegebene Resultat eines maskierten Feldes ist <code>•••</code>, der Befehl selbst enthält aber, was du tippen lassen wolltest</li>
+</ul>
+
+<h2>Was gespeichert wird</h2>
+<p>In Chrome (<code>chrome.storage.local</code>) speichert die Erweiterung nur ihre eigenen Einstellungen: Bridge-Port, Bridge-Token, Ein/Aus-Schalter und deine Zustimmung (inklusive der Version des Hinweises, dem du zugestimmt hast). Der Bridge-Token ist ein Geheimnis, das die Steuerung deines Browsers erlaubt. Er ist kein Website-Passwort. Er wird gespeichert, damit die Erweiterung sich wieder verbinden kann. Die Erweiterung verschlüsselt ihn nicht über Chromes lokalen Speicher und die Dateirechte der Bridge-Konfiguration hinaus.</p>
+<p>Die Bridge speichert denselben Token in <code>~/.bot-bridge/config.json</code> (oder einer bestehenden <code>~/.grok-chrome-bridge/config.json</code> aus Version 1.0), Modus 600, in einem Verzeichnis Modus 700, soweit das Betriebssystem das zulässt. <code>bridge.py serve</code> gibt den Token nicht aus. <code>bridge.py token</code> und <code>bridge.py new-token</code> geben ihn in diesem Terminal aus. Leite diese beiden Befehle nicht in ein Dienst-Log um. Wenn ein Log einer älteren Version eine Zeile <code>Token:</code> enthält, lösche das Log und führe <code>new-token</code> aus.</p>
 
 <h2>Wer die Daten erhält</h2>
 <ul>
-  <li>Nur die Bridge-App auf deinem eigenen Computer (127.0.0.1), die sie an den KI-Assistenten weitergibt, den <em>du</em> verbunden hast. Was dieser Assistent damit tut, regelt dessen eigene Datenschutzerklärung.</li>
-  <li>Der Entwickler erhält <b>nichts</b>. Daten werden nicht verkauft, nicht an Dritte weitergegeben und nicht für Werbung, Bonitätsprüfung oder andere Zwecke als den einzigen Zweck der Erweiterung verwendet.</li>
+  <li>Die Bridge auf deinem Computer erhält die Befehlsresultate und stellt sie dem KI-Assistenten bereit, den du verbunden hast. Diese Weitergabe ist der einzige Zweck der Erweiterung. Der Assistent kann die Daten danach ausserhalb deines Geräts verarbeiten. Was er damit tut, regelt seine eigene Datenschutzerklärung. Diese Erklärung steuert das nicht und bestätigt es nicht.</li>
+  <li>Der Entwickler erhält keine Seiteninhalte, Screenshots, Tab-Listen oder den Bridge-Token. Der Entwickler verkauft diese Daten nicht und nutzt sie nicht für Werbung, Bonität oder Kreditvergabe.</li>
 </ul>
+<p>Dass der Entwickler die Daten nicht erhält, bedeutet nicht, dass die Daten auf deinem Gerät bleiben, nachdem dein Assistent sie erhalten hat.</p>
+
+<h2>Limited Use</h2>
+<p>Bot Bridge hält die Chrome-Web-Store-Richtlinie zu Nutzerdaten ein, einschliesslich der Anforderungen zur beschränkten Nutzung (Limited Use), für Daten, die diese Erweiterung verarbeitet.</p>
+<p>Diese Daten werden nur verwendet, um die Browser-Aktionen auszuführen, die du über deinen gewählten Assistenten verlangst, und um die von dir eingerichtete Verbindung zu halten (Port, Token, Ein/Aus, Zustimmung). Die Erweiterung gibt Befehlsresultate nur an die Bridge auf deinem Computer weiter, damit dieser Assistent die Aktionen ausführen kann. Die Weitergabe ist für diesen einzigen Zweck nötig und erfolgt erst nach der Zustimmung im Popup. Die Daten werden nicht verkauft. Diese Erweiterung nutzt oder übermittelt sie nicht für Werbung, Bonität oder Kreditvergabe. Der Entwickler liest keine Seiteninhalte.</p>
+<p>Diese Aussage beschreibt Bot Bridge. Sie bestätigt nicht, wie ein Assistent eines Dritten die Daten später nach seiner eigenen Erklärung verwendet.</p>
 
 <h2>Sicherheit</h2>
 <ul>
-  <li>Die Erweiterung verbindet sich nur mit <code>127.0.0.1</code>; dieser Verkehr verlässt deinen Computer nie.</li>
-  <li>Jede Anfrage braucht einen geheimen Token, der auf deinem Computer erzeugt wird und den nur du hast. Anfragen von Webseiten lehnt die Bridge ab.</li>
-  <li>Nichts verbindet sich, bevor du dem Hinweis im Popup zustimmst. Du kannst die Erweiterung jederzeit ausschalten, die Zustimmung widerrufen oder sie deinstallieren.</li>
-  <li>Die Erweiterung enthält ihren gesamten Code selbst; sie lädt und führt keinen Code von aussen aus.</li>
+  <li>Die Erweiterung verbindet sich nur mit <code>127.0.0.1</code>. Die Bridge lauscht nur auf <code>127.0.0.1</code>.</li>
+  <li>Die Loopback-Verbindung ist gewöhnliches HTTP. Die FAQ zu Nutzerdaten von Chrome (Frage 16) sagt, dass die Anforderung an sichere Verarbeitung nicht für Übertragungen zwischen einer Erweiterung und einem nativen Programm auf demselben Computer gilt. Diese Erklärung behauptet nicht, dass dieser Hop verschlüsselt ist. Andere Programme auf dem Computer, die den Token haben, können Befehle senden. TLS ersetzt nicht den Schutz des Tokens.</li>
+  <li>Jede Anfrage braucht den Token. Die Bridge lehnt einen <code>Host</code>-Header ab, der nicht Loopback ist, und sie lehnt <code>Origin</code>-Werte von Webseiten ab. Diese Prüfungen stoppen kein lokales Programm, das den Token bereits hat.</li>
+  <li>Das Chrome-Web-Store-Paket enthält seinen Code. Befehle sind Daten (Befehlsname, URL, Selektor oder Text) und gehen an Funktionen im Paket. Das Store-Paket hat kein <code>eval</code> und lädt keine externen Skripte. URLs, die es öffnet, sind <code>http</code>, <code>https</code>, <code>file</code> oder <code>about:blank</code>.</li>
+  <li>Die Entwicklerfassung im Quellbaum kann einen optionalen <code>eval</code>-Befehl ausführen. Diese Fassung ist nicht das Store-Paket. Lass sie aus, ausser du willst beliebiges JavaScript in der Seite ausführen.</li>
+  <li>Ein Screenshot wird nur dann auf die Festplatte geschrieben, wenn der Befehl einen Dateipfad nennt. Dieser Schreibvorgang läuft unter deinem Benutzerkonto und ist nicht auf einen einzelnen Ordner beschränkt. Nenne keinen Pfad, den du nicht ersetzen willst.</li>
 </ul>
 
 <h2>Speicherdauer und Löschung</h2>
-<p>Die Erweiterung behält keine Kopien von Seiteninhalten oder Screenshots. Einstellungen bleiben in Chrome, bis du sie änderst oder die Erweiterung deinstallierst (dabei werden sie gelöscht). Ein Screenshot wird nur dann auf die Festplatte geschrieben, wenn der Befehl ausdrücklich einen Dateipfad auf deinem Computer angibt.</p>
+<p>Die Erweiterung behält keine Kopien von Seiteninhalten oder Screenshots. Einstellungen bleiben in Chrome, bis du sie änderst, die Zustimmung widerrufst oder die Erweiterung deinstallierst (dabei wird der Speicher der Erweiterung gelöscht). Lösche die Bridge-Konfigurationsdatei, um den Token von der Festplatte zu entfernen. Erzeuge einen neuen mit <code>bridge.py new-token</code>, wenn er in einem Log gestanden haben könnte.</p>
 
 <h2>Kontakt</h2>
 <p>Fragen oder Anliegen: bitte ein Issue eröffnen unter <a href="https://github.com/plutunieer/bot-bridge/issues">https://github.com/plutunieer/bot-bridge/issues</a>. Quellcode: <a href="https://github.com/plutunieer/bot-bridge">https://github.com/plutunieer/bot-bridge</a></p>
