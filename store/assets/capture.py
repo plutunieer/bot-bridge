@@ -38,12 +38,20 @@ def grab(name):
     im.save(os.path.join(RAW, name)); print("saved", name, im.size)
 
 def popup_shot(ctx, eid, name, height):
-    """Popup rendered at 2x for crisp compositing."""
+    """Popup rendered at 2x for crisp compositing. Height grows to fit the notice."""
     pg = ctx.new_page()
     cdp = ctx.new_cdp_session(pg)
     cdp.send("Emulation.setDeviceMetricsOverride", {"width": 340, "height": height, "deviceScaleFactor": 2, "mobile": False})
-    pg.goto(f"chrome-extension://{eid}/popup.html"); time.sleep(1.8)
-    pg.locator("body").screenshot(path=os.path.join(RAW, name)); print("saved", name)
+    pg.goto(f"chrome-extension://{eid}/popup.html"); time.sleep(1.5)
+    full = pg.evaluate("""() => {
+      document.body.style.maxHeight = 'none';
+      document.body.style.overflow = 'visible';
+      return Math.ceil(document.documentElement.scrollHeight);
+    }""")
+    use = max(height, int(full) + 8)
+    cdp.send("Emulation.setDeviceMetricsOverride", {"width": 340, "height": use, "deviceScaleFactor": 2, "mobile": False})
+    time.sleep(0.4)
+    pg.locator("body").screenshot(path=os.path.join(RAW, name)); print("saved", name, "css_height", use)
     pg.close()
 
 try:
@@ -55,12 +63,15 @@ try:
     with sync_playwright() as p:
         ctx = p.chromium.launch_persistent_context(prof, channel="chromium", headless=False, no_viewport=True,
             env={**os.environ, "DISPLAY": DISP}, ignore_default_args=["--enable-automation"],
-            args=[f"--disable-extensions-except={EXT}", f"--load-extension={EXT}", "--window-position=0,0",
-                  "--window-size=1280,800", "--no-first-run", "--hide-crash-restore-bubble", "--test-type", "--lang=en-US"])
+            args=[f"--disable-extensions-except={EXT}", f"--load-extension={EXT}",
+                  "--disable-features=DisableLoadExtensionCommandLineSwitch",
+                  "--no-sandbox", "--disable-dev-shm-usage",
+                  "--window-position=0,0", "--window-size=1280,800",
+                  "--no-first-run", "--hide-crash-restore-bubble", "--test-type", "--lang=en-US"])
         sw = ctx.service_workers[0] if ctx.service_workers else ctx.wait_for_event("serviceworker", timeout=15000)
         assert sw.url.split("/")[2] == eid, (sw.url, eid)
         time.sleep(1.5)
-        popup_shot(ctx, eid, "popup_consent@2x.png", 640)          # first run: disclosure + consent
+        popup_shot(ctx, eid, "popup_consent@2x.png", 760)          # notice version 2, full disclosure
         page = ctx.pages[0]
         page.goto(f"chrome-extension://{eid}/popup.html"); time.sleep(0.5)
         page.check("#consent")
@@ -79,7 +90,7 @@ try:
         bot({"cmd": "type", "index": q, "text": "Altstadt"})
         bot({"cmd": "click", "index": btn})
         bot({"cmd": "get_page", "max_chars": 600})
-        popup_shot(ctx, eid, "popup_connected@2x.png", 460)
+        popup_shot(ctx, eid, "popup_connected@2x.png", 560)
         page.bring_to_front(); time.sleep(0.5)
         grab("browser_page.png")
         sw.evaluate("chrome.action.openPopup()"); time.sleep(1.5)

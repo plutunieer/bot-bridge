@@ -80,10 +80,10 @@ cards = [(ic_chat, "Your AI assistant", "e.g. Grok Bot – runs commands on your
 conn = '<svg width="76" height="40" viewBox="0 0 76 40"><path d="M10 20 H66" stroke="#A5B4FC" stroke-width="3" stroke-dasharray="2 7" stroke-linecap="round"/><circle cx="8" cy="20" r="6" fill="#4F46E5"/><circle cx="68" cy="20" r="6" fill="#4F46E5"/></svg>'
 row = conn.join(f'<div class="card"><div class="ic">{i}</div><b>{t}</b><p>{d}</p></div>' for i, t, d in cards)
 check = '<svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="#4F46E5"/><path d="M5 9.2l2.6 2.6L13 6.6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-feats = "".join(f'<span class="feat">{check}{f}</span>' for f in ["Localhost only", "Secret token", "On/off switch", "Consent first", "No tracking"])
+feats = "".join(f'<span class="feat">{check}{f}</span>' for f in ["Direct link: 127.0.0.1", "Secret token", "On/off switch", "Consent first", "No tracking"])
 s3 = page(f"""{lock()}
 <h1>How it works</h1>
-<div class="sub">Everything stays on your computer. The extension sends nothing to any server.</div>
+<div class="sub">The extension talks only to 127.0.0.1. Your assistant may process results off this device.</div>
 <div class="row">{row}</div><div class="feats">{feats}</div>""", css="""
 .row{position:absolute;left:64px;right:64px;top:300px;display:flex;align-items:center;justify-content:space-between}
 .card{width:330px;height:260px;background:#fff;border:1px solid #E2E8F0;border-radius:18px;padding:30px;box-shadow:0 1px 2px rgba(15,23,42,.05),0 18px 40px -16px rgba(15,23,42,.18)}
@@ -94,16 +94,21 @@ s3 = page(f"""{lock()}
 """)
 
 # ---------------------------------------------------------------- 4: consent / control
-pts = [("Nothing connects until you agree", "A clear notice explains what the extension can do."),
-       ("Only your own computer", "Data goes to the bridge on 127.0.0.1 – never to a server."),
-       ("Off in one click", "The switch stops all access instantly. Revoke consent any time.")]
+pts = [("Nothing connects until you agree", "The notice covers tabs, page text, clicks, typing and screenshots."),
+       ("Directly only to 127.0.0.1", "Not sent to the developer. Your assistant may process it off this device."),
+       ("Off in one click", "The switch stops new access immediately. Revoke consent any time.")]
 plist = "".join(f'<div class="pt">{check.replace("18", "26")}<div><b>{a}</b><span>{b}</span></div></div>' for a, b in pts)
+_consent_im = Image.open(os.path.join(RAW, "popup_consent@2x.png"))
+_max_h, _max_w = 736, 380
+_scale = min(_max_w / _consent_im.width, _max_h / _consent_im.height)
+_dw, _dh = int(_consent_im.width * _scale), int(_consent_im.height * _scale)
+_left, _top = 1280 - 56 - _dw, max(32, (800 - _dh) // 2)
 s4 = page(f"""{lock()}
 <h1 style="top:200px">You stay<br><span class="accent">in control.</span></h1>
 <div class="pts">{plist}</div>
-<div class="frame" style="left:806px;top:64px;width:340px;height:640px;border-radius:16px"><img src="{uri(os.path.join(RAW,'popup_consent@2x.png'))}" style="height:auto"></div>""", css="""
+<div class="frame" style="left:{_left}px;top:{_top}px;width:{_dw}px;height:{_dh}px;border-radius:16px"><img src="{uri(os.path.join(RAW,'popup_consent@2x.png'))}" style="width:100%;height:100%;object-fit:fill"></div>""", css="""
 h1{font-size:52px}
-.pts{position:absolute;left:64px;top:360px;width:600px}
+.pts{position:absolute;left:64px;top:360px;width:560px}
 .pt{display:flex;gap:16px;align-items:flex-start;margin-bottom:26px}.pt svg{flex:none;margin-top:2px}
 .pt b{display:block;font-size:21px;letter-spacing:-.01em}.pt span{display:block;font-size:17px;color:#64748B;margin-top:3px}
 """)
@@ -118,7 +123,7 @@ promo = f"""<html><head><style>*{{box-sizing:border-box}}body{{margin:0;width:44
 {MARK.format(s=300, c="rgba(255,255,255,.13)", st="position:absolute;right:-110px;top:-40px")}
 <div class="tile">{MARK.format(s=56, c="#4F46E5", st="")}</div>
 <div class="name">Bot Bridge</div>
-<div class="tag">Let your AI assistant use your own Chrome – privately, via localhost.</div>
+<div class="tag">Your AI assistant, in your own Chrome. The extension talks to 127.0.0.1.</div>
 </body></html>"""
 
 with sync_playwright() as p:
