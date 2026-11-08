@@ -8,7 +8,7 @@ Store build differences (Chrome Web Store / MV3 remote-code policy):
     action runs code that ships inside the extension package; the bridge only
     sends data (command name, URL, selector, text), never code.
   * `activeTab` permission dropped (redundant with the host permission).
-  * version 1.0.3, store-oriented description, popup help line, en/de locales, consent screen.
+  * version 1.0.4, store-oriented description, popup help line, en/de locales, consent screen.
 """
 import json, os, re, shutil, sys, zipfile
 
@@ -17,7 +17,7 @@ ROOT = os.path.dirname(HERE)
 SRC = os.path.join(ROOT, "extension")
 OUT = os.path.join(HERE, "extension")
 DIST = os.path.join(ROOT, "dist")
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 
 def rep(s, old, new, count=1):
     if old not in s:
@@ -81,15 +81,15 @@ open(p, "w").write(s)
 CONSENT_HTML = """    <div id="consentBox" class="consent">
       <b class="t">Read before connecting · Bitte vor dem Verbinden lesen</b>
       <ul>
-        <li>Your assistant, via the bridge on <b>this computer</b>, can open tabs, read page text and form values, click, type, and take screenshots.</li>
-        <li>The extension sends that data only to <b>127.0.0.1</b>, not to the developer. Your assistant may process it <b>off this device</b>. This is not an offline guarantee.</li>
+        <li>Your assistant, via the bridge on <b>this computer</b>, can open tabs, read page text and form values, click, type, take screenshots, and place <b>local files you name</b> into file inputs.</li>
+        <li>The extension sends that data only to <b>127.0.0.1</b>, not to the developer. Your assistant, and any site you upload to, may process it <b>off this device</b>. This is not an offline guarantee.</li>
         <li>Password fields are masked only in page reads. Screenshots, other fields, and text you ask the assistant to type are not. Pages can contain sensitive personal data.</li>
         <li>Dein Assistent kann das über die Bridge auf diesem Computer. Die Erweiterung sendet es nur an <b>127.0.0.1</b>, nicht an den Entwickler. Der Assistent kann es <b>ausserhalb des Geräts</b> verarbeiten. Passwortfelder werden nur beim Auslesen maskiert.</li>
       </ul>
       <label><input id="consent" type="checkbox"> I understand and agree · Ich stimme zu</label>
     </div>
     <div id="consentedLine" class="consented" style="display:none">Consent given · Zugestimmt. Your assistant may process data off-device. <a href="#" id="revoke">Revoke · Widerrufen</a></div>"""
-CONSENT_JS = """const CONSENT_VERSION = 2;
+CONSENT_JS = """const CONSENT_VERSION = 3;
 function consentCurrent(s) { return !!s.consent && s.consentVersion === CONSENT_VERSION; }
 function showConsent(ok) {
   $("consentBox").style.display = ok ? "none" : "block";

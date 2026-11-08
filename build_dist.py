@@ -21,7 +21,7 @@ with zipfile.ZipFile(os.path.join(DIST, "bot-bridge.zip"), "w") as z:
 with zipfile.ZipFile(os.path.join(DIST, "bridge-app.zip"), "w") as z:
     for sub in ("bridge", "client"):
         add_tree(z, os.path.join(ROOT, sub), "bot-bridge/" + sub)
-    for f in ("README.md", "BOT-SKILL.md"):
+    for f in ("README.md", "BOT-SKILL.md", "CAPABILITIES.md", "MIGRATION-1.0.4.md"):
         info = zipfile.ZipInfo("bot-bridge/docs/" + f, (2026, 11, 8, 0, 0, 0)); info.external_attr = 0o644 << 16
         info.compress_type = zipfile.ZIP_DEFLATED
         z.writestr(info, open(os.path.join(ROOT, "docs", f), "rb").read())

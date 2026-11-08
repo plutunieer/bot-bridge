@@ -21,10 +21,13 @@ two commands into a service log.
 """
 import argparse
 import base64
+import hashlib
 import json
+import mimetypes
 import os
 import queue
 import secrets
+import stat
 import sys
 import threading
 import time
@@ -33,7 +36,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 DEFAULT_PORT = 8765
 _HOME = os.path.expanduser("~")
 CONFIG_DIR = os.path.join(_HOME, ".bot-bridge")
@@ -45,6 +48,11 @@ POLL_WAIT = 25          # seconds a /next long-poll is held open
 CONNECTED_GRACE = 40    # extension counts as connected if it polled within this window
 DEFAULT_TIMEOUT = 30    # seconds /command waits for a result
 MAX_BODY = 64 * 1024 * 1024
+# Upload reads only paths named in that command. Caps keep one command from
+# turning the bridge into an unbounded disk read.
+MAX_UPLOAD_FILES = 8
+MAX_UPLOAD_BYTES = 16 * 1024 * 1024
+MAX_UPLOAD_TOTAL = 24 * 1024 * 1024
 
 
 # ---------------------------------------------------------------- config
@@ -129,6 +137,70 @@ def _save_screenshot_if_requested(cmd, result):
     except Exception as e:  # noqa
         result["result"]["save_error"] = str(e)
     return result
+
+
+def stage_upload_files(body):
+    """Read regular files explicitly named by an upload command.
+
+    Caller-supplied file bytes are ignored. There is no directory listing,
+    glob, or general read endpoint. Symlinks are resolved and both paths are
+    reported; the opened inode must be a regular file within the size cap.
+    """
+    if not isinstance(body, dict):
+        raise ValueError("upload body must be an object")
+    paths = []
+    if isinstance(body.get("paths"), list):
+        paths.extend(body["paths"])
+    if "path" in body and body.get("path") is not None:
+        paths.append(body.get("path"))
+    if not paths:
+        raise ValueError("path or paths required")
+    if len(paths) > MAX_UPLOAD_FILES:
+        raise ValueError("too many files (limit %d)" % MAX_UPLOAD_FILES)
+    files = []
+    total = 0
+    for raw in paths:
+        if not isinstance(raw, str) or not raw.strip() or "\x00" in raw:
+            raise ValueError("invalid path")
+        requested = raw
+        expanded = os.path.expanduser(raw)
+        real = os.path.realpath(expanded)
+        flags = os.O_RDONLY
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        try:
+            fd = os.open(real, flags)
+        except OSError as e:
+            raise ValueError("cannot open file: %s" % e.strerror)
+        try:
+            st = os.fstat(fd)
+            if not stat.S_ISREG(st.st_mode):
+                raise ValueError("not a regular file")
+            if st.st_size > MAX_UPLOAD_BYTES:
+                raise ValueError("file too large (%d bytes, limit %d)" % (st.st_size, MAX_UPLOAD_BYTES))
+            total += st.st_size
+            if total > MAX_UPLOAD_TOTAL:
+                raise ValueError("upload too large (limit %d bytes)" % MAX_UPLOAD_TOTAL)
+            data = os.read(fd, st.st_size)
+            if len(data) != st.st_size:
+                raise ValueError("file changed while reading")
+        finally:
+            os.close(fd)
+        mime = mimetypes.guess_type(os.path.basename(real))[0] or "application/octet-stream"
+        files.append({
+            "name": os.path.basename(real) or "file",
+            "mime": mime,
+            "size": len(data),
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "requested_path": requested,
+            "real_path": real,
+            "data_base64": base64.b64encode(data).decode("ascii"),
+        })
+    return files
+
+
+def _upload_public_meta(files):
+    return [{k: f[k] for k in ("name", "mime", "size", "sha256", "requested_path", "real_path")} for f in files]
 
 
 def _host_name(value):
@@ -289,6 +361,21 @@ class Handler(BaseHTTPRequestHandler):
             if not self._connected():
                 self._send(503, {"ok": False, "error": "extension not connected (is Chrome open and the extension enabled with the right port/token?)"})
                 return
+            upload_meta = None
+            if body.get("cmd") == "upload":
+                # Never accept bytes from the caller. Stage only named regular files,
+                # and only after the extension is connected, so a refused command
+                # does not read the disk.
+                body.pop("files", None)
+                body.pop("data_base64", None)
+                try:
+                    staged = stage_upload_files(body)
+                except ValueError as e:
+                    self._send(400, {"ok": False, "error": str(e)})
+                    return
+                upload_meta = _upload_public_meta(staged)
+                body = dict(body)
+                body["files"] = staged
             timeout = float(body.get("timeout") or DEFAULT_TIMEOUT)
             timeout = max(1.0, min(timeout, 300.0))
             cid = uuid.uuid4().hex
@@ -305,7 +392,11 @@ class Handler(BaseHTTPRequestHandler):
             res = w["result"]
             out = {"ok": bool(res.get("ok")), "cmd": body.get("cmd")}
             if res.get("ok"):
-                out["result"] = res.get("result")
+                out["result"] = res.get("result") if isinstance(res.get("result"), dict) else {"value": res.get("result")}
+                if upload_meta is not None:
+                    # Confirm what was read. Do not return file bytes.
+                    out["result"]["files"] = upload_meta
+                    out["result"].pop("data_base64", None)
             else:
                 out["error"] = res.get("error") or "unknown error"
             out = _save_screenshot_if_requested(body, out)

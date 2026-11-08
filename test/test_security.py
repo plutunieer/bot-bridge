@@ -288,7 +288,7 @@ for (const [url, ok] of cases) {
 console.log('nav-ok');
 """
     scenarios = """
-const REQUIRED_CONSENT_VERSION = 2;
+const REQUIRED_CONSENT_VERSION = 3;
 function check(defaults, state, expect) {
   const DEFAULTS = defaults;
   const cfg = state;
@@ -296,8 +296,8 @@ function check(defaults, state, expect) {
   if (consentOk() !== expect) process.exit(1);
 }
 check({ consent: false, consentVersion: 0 }, { consent: true, consentVersion: 0 }, false);
-check({ consent: false, consentVersion: 0 }, { consent: true, consentVersion: 2 }, true);
-check({ consent: false, consentVersion: 0 }, { consent: false, consentVersion: 2 }, false);
+check({ consent: false, consentVersion: 0 }, { consent: true, consentVersion: 3 }, true);
+check({ consent: false, consentVersion: 0 }, { consent: false, consentVersion: 3 }, false);
 check({ port: 8765, enabled: true, allowEval: true }, { enabled: true }, true);
 console.log('consent-ok');
 """ % consent
@@ -310,7 +310,7 @@ console.log('consent-ok');
     check("store build requires consent version", "consentVersion === REQUIRED_CONSENT_VERSION" in store)
     check("store defaults withhold consent", "consent: false, consentVersion: 0" in store)
     popup = open(os.path.join(ROOT, "store", "extension", "popup.js"), encoding="utf-8").read()
-    check("popup saves the same consent version", "const CONSENT_VERSION = 2;" in popup and "REQUIRED_CONSENT_VERSION = 2" in store)
+    check("popup saves the same consent version", "const CONSENT_VERSION = 3;" in popup and "REQUIRED_CONSENT_VERSION = 3" in store)
 
 
 def test_password_masking_in_packaged_handlers():
@@ -394,7 +394,7 @@ def test_packaged_store_has_no_remote_code():
         names = z.namelist()
         check("manifest at zip root", "manifest.json" in names)
         manifest = json.loads(z.read("manifest.json"))
-        check("package version 1.0.3", manifest.get("version") == "1.0.3")
+        check("package version 1.0.4", manifest.get("version") == "1.0.4")
         check("no activeTab in store manifest", "activeTab" not in manifest.get("permissions", []))
         joined = []
         for info in z.infolist():
@@ -405,7 +405,7 @@ def test_packaged_store_has_no_remote_code():
                     if needle in text:
                         fail("packaged file contains " + needle)
         blob = "\n".join(joined)
-    check("packaged handlers and consent are present", "function pageGetPage" in blob and "REQUIRED_CONSENT_VERSION = 2" in blob)
+    check("packaged handlers and consent are present", "function pageGetPage" in blob and "function pageApplyFiles" in blob and "REQUIRED_CONSENT_VERSION = 3" in blob)
     check("packaged popup states off-device processing", "off this device" in blob and "ausserhalb des Geräts" in blob)
     check("old absolute no-server sentence is gone", "Nothing is sent to the developer or any server" not in blob)
     dev = open(os.path.join(ROOT, "extension", "background.js"), encoding="utf-8").read()

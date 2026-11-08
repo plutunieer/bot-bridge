@@ -1,4 +1,6 @@
-# Chrome Web Store – submission checklist (Bot Bridge 1.0.3)
+# Chrome Web Store – submission checklist (Bot Bridge 1.0.4)
+
+Do not submit this package while 1.0.3 is pending review. This checklist is for a later upload.
 
 Everything referenced here is in `/workspace/grok-chrome-bridge/` (also inside `dist/bot-bridge.zip`).
 

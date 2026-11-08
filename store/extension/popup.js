@@ -31,7 +31,7 @@ async function refresh() {
 
 $("save").addEventListener("click", save);
 $("enabled").addEventListener("change", save);
-const CONSENT_VERSION = 2;
+const CONSENT_VERSION = 3;
 function consentCurrent(s) { return !!s.consent && s.consentVersion === CONSENT_VERSION; }
 function showConsent(ok) {
   $("consentBox").style.display = ok ? "none" : "block";

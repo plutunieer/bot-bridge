@@ -1,4 +1,4 @@
-# Chrome Web Store listing – Bot Bridge 1.0.3
+# Chrome Web Store listing – Bot Bridge 1.0.4
 
 Links used in this listing:
 - Bridge download: https://github.com/plutunieer/bot-bridge/releases/latest/download/bridge-app.zip
@@ -33,6 +33,7 @@ Bot Bridge connects Chrome to a small bridge app running on your own computer. Y
 • read a page: title, URL, visible text and a numbered list of buttons, links and fields
 • click, type into fields, press keys, scroll, wait for elements
 • take a screenshot of the visible tab
+• place a file you name on this computer into a file input (more than one file when the control allows it). The bridge reads only that named regular file. The page can then upload it. This does not drive the operating system's file dialog.
 
 IMPORTANT – A SEPARATE BRIDGE APP IS REQUIRED
 This extension does nothing on its own. It needs the free bridge app (bridge.py, Python 3, no extra packages, Windows/macOS/Linux) running on the same computer:
@@ -43,13 +44,13 @@ This extension does nothing on its own. It needs the free bridge app (bridge.py,
 
 PRIVACY & SECURITY
 • The extension communicates directly only with the bridge on your computer (127.0.0.1). It does not send data to the extension developer. No analytics, no tracking, no ads.
-• On your commands it handles tab URLs and titles, page text, form-field values and screenshots. Those can contain sensitive personal information. The bridge makes results available to the AI assistant you chose; that assistant may process data off your device under its own privacy policy. This is not an end-to-end offline guarantee.
+• On your commands it handles tab URLs and titles, page text, form-field values, screenshots, and files you explicitly name. Those can contain sensitive personal information. The bridge makes results available to the AI assistant you chose; that assistant may process data off your device under its own privacy policy. A file placed into a page can also be uploaded by that website. This is not an end-to-end offline guarantee.
 • Password-type fields, and fields marked current-password or new-password, are masked only when the extension reads the page or returns a click/type result. Screenshots, other fields (including one-time codes), page text, and text you tell the assistant to type are not masked.
 • Every request needs a secret token that only you have; the bridge refuses requests from websites. Nothing connects until you agree to the notice in the popup. An on/off switch stops all access instantly.
 • All actions in this store package are performed by code shipped inside the extension. No remote code is loaded or executed.
 
 LIMITATIONS
-Chrome does not allow extensions to script chrome:// pages or the Chrome Web Store. Captchas, file pickers and native browser dialogs need to be done by hand.
+Chrome does not allow extensions to script chrome:// pages or the Chrome Web Store. Captchas and native dialogs (the operating system's file-open and save dialogs, print, and permission prompts) still need a person. Naming a file in an upload command fills a file input without opening that dialog.
 
 Independent project – not affiliated with or endorsed by the makers of Grok or Grok Bot.
 Source code & support: https://github.com/plutunieer/bot-bridge
@@ -77,6 +78,7 @@ Bot Bridge verbindet Chrome mit einer kleinen Bridge-App auf deinem eigenen Comp
 • Seiten lesen: Titel, URL, sichtbarer Text und eine nummerierte Liste von Buttons, Links und Feldern
 • klicken, in Felder tippen, Tasten drücken, scrollen, auf Elemente warten
 • Screenshot des sichtbaren Tabs
+• eine von dir genannte Datei auf diesem Computer in ein Dateifeld setzen (mehrere Dateien, wenn das Feld das erlaubt). Die Bridge liest nur diese genannte reguläre Datei. Die Seite kann sie danach hochladen. Der Dateidialog des Betriebssystems wird dabei nicht bedient.
 
 WICHTIG – EINE SEPARATE BRIDGE-APP IST NÖTIG
 Die Erweiterung macht allein nichts. Sie braucht die kostenlose Bridge-App (bridge.py, Python 3, keine Zusatzpakete, Windows/macOS/Linux) auf demselben Computer:
@@ -87,13 +89,13 @@ Die Erweiterung macht allein nichts. Sie braucht die kostenlose Bridge-App (brid
 
 DATENSCHUTZ & SICHERHEIT
 • Die Erweiterung kommuniziert direkt nur mit der Bridge auf deinem Computer (127.0.0.1). Sie sendet keine Daten an den Erweiterungsentwickler. Keine Analyse, kein Tracking, keine Werbung.
-• Auf deine Befehle verarbeitet sie Tab-URLs und -Titel, Seitentext, Formularwerte und Screenshots. Diese können sensible personenbezogene Angaben enthalten. Die Bridge stellt die Resultate deinem gewählten KI-Assistenten bereit; dieser kann Daten gemäss seiner eigenen Datenschutzerklärung ausserhalb deines Geräts verarbeiten. Das ist keine Garantie für eine vollständig lokale Verarbeitung.
+• Auf deine Befehle verarbeitet sie Tab-URLs und -Titel, Seitentext, Formularwerte, Screenshots und Dateien, die du ausdrücklich nennst. Diese können sensible personenbezogene Angaben enthalten. Die Bridge stellt die Resultate deinem gewählten KI-Assistenten bereit; dieser kann Daten gemäss seiner eigenen Datenschutzerklärung ausserhalb deines Geräts verarbeiten. Eine Datei in einer Seite kann die Website ebenfalls hochladen. Das ist keine Garantie für eine vollständig lokale Verarbeitung.
 • Passwortfelder und Felder mit current-password oder new-password werden nur beim Auslesen der Seite und im Klick-/Tipp-Resultat maskiert. Screenshots, andere Felder (auch Einmalcodes), Seitentext und Text, den du tippen lässt, werden nicht maskiert.
 • Jede Anfrage braucht einen geheimen Token, den nur du hast; Anfragen von Webseiten lehnt die Bridge ab. Nichts verbindet sich, bevor du dem Hinweis im Popup zustimmst. Ein Ein/Aus-Schalter stoppt jeden Zugriff sofort.
 • Alle Aktionen in diesem Store-Paket laufen mit Code, der in der Erweiterung enthalten ist. Es wird kein Code von aussen geladen oder ausgeführt.
 
 GRENZEN
-Chrome erlaubt Erweiterungen keinen Zugriff auf chrome://-Seiten oder den Chrome Web Store. Captchas, Datei-Auswahl und Browser-Dialoge musst du selbst erledigen.
+Chrome erlaubt Erweiterungen keinen Zugriff auf chrome://-Seiten oder den Chrome Web Store. Captchas und native Dialoge (Datei-öffnen und Speichern des Betriebssystems, Drucken, Berechtigungsabfragen) musst du selbst erledigen. Ein Upload-Befehl setzt eine genannte Datei in ein Dateifeld, ohne diesen Dialog zu öffnen.
 
 Unabhängiges Projekt – nicht verbunden mit den Herstellern von Grok oder Grok Bot.
 Quellcode & Support: https://github.com/plutunieer/bot-bridge
@@ -112,7 +114,7 @@ Datenschutzerklärung: https://plutunieer.github.io/bot-bridge/privacy-policy.ht
 
 **Single purpose description** (EN):
 ```
-Lets the user's own AI assistant operate the user's Chrome: open, switch and close tabs, read page text and form fields, click, type, scroll and take screenshots, using commands from a bridge app the user runs on the same computer. The extension talks only to 127.0.0.1. Results go to the assistant the user chose, which may process them off the device.
+Lets the user's own AI assistant operate the user's Chrome: open, switch and close tabs, read page text and form fields, click, type, scroll, take screenshots, and place local files the user names into file inputs, using commands from a bridge app the user runs on the same computer. The extension talks only to 127.0.0.1. Results go to the assistant the user chose, which may process them off the device. A named file can also be uploaded by the website.
 ```
 
 **Permission justifications:**
@@ -168,7 +170,7 @@ The file in this branch is `privacy-policy.html` at the repository root (same by
 Username / password: leave empty. **Additional instructions** (499 characters, limit 500). Do not point reviewers at `releases/latest` until that asset is actually 1.0.3. This audit does not publish a release.
 
 ```
-Use Bot Bridge companion 1.0.3 (Python 3, no packages), not an older release. python3 bridge.py serve does NOT print the token. In another terminal: python3 bridge.py token. Popup: read the notice, tick consent, paste port and token, Save. Badge shows ON. Then: python3 bridge.py send open_url url=https://example.com ; python3 bridge.py send get_page ; python3 bridge.py send click index=0. The extension talks only to http://127.0.0.1. No remote code. The assistant may process results off-device.
+Use Bot Bridge companion 1.0.4 (Python 3, no packages), not an older release. python3 bridge.py serve does NOT print the token. In another terminal: python3 bridge.py token. Popup: read the notice, tick consent, paste port and token, Save. Badge shows ON. Then: python3 bridge.py send open_url url=https://example.com ; python3 bridge.py send get_page ; python3 bridge.py send click index=0. The extension talks only to http://127.0.0.1. No remote code. The assistant may process results off-device.
 ```
 
-Longer setup, not for the 500-character field: use `dist/bridge-app.zip` from this branch (or the raw URL of that file on the branch). Unzip, run `python3 bot-bridge/bridge/bridge.py serve`, then `python3 bot-bridge/bridge/bridge.py token` in a terminal you control. The extension package is `dist/extension-store.zip` (manifest at the root, version 1.0.3). Do not load `extension/` — that developer build still has optional `eval`. Consent is required before the badge shows ON; an earlier consent from 1.0.2 is not reused because the notice version changed. The assistant you connect may send results off the device. Loopback HTTP is intentional; see the privacy policy and Chrome User Data FAQ question 16. Screenshot 4 matches the current notice (version 2): direct traffic is 127.0.0.1, the assistant may process data off-device, and password masking is limited. Upload the four screenshots and the promo tile from `store/images/` again so the draft matches this package.
+Longer setup, not for the 500-character field: use `dist/bridge-app.zip` from this branch (or the raw URL of that file on the branch). Unzip, run `python3 bot-bridge/bridge/bridge.py serve`, then `python3 bot-bridge/bridge/bridge.py token` in a terminal you control. The extension package is `dist/extension-store.zip` (manifest at the root, version 1.0.4). Do not upload it over the pending 1.0.3 review. Do not load `extension/` — that developer build still has optional `eval`. Consent is required before the badge shows ON; an earlier consent from 1.0.2 is not reused because the notice version changed. The assistant you connect may send results off the device. Loopback HTTP is intentional; see the privacy policy and Chrome User Data FAQ question 16. Store images in `store/images/` still show the 1.0.3 notice (consent version 2). Version 1.0.4 adds named-file upload to the notice (version 3). Recapture screenshot 4 before any future store submission of 1.0.4. Do not replace the pending 1.0.3 submission from this branch.

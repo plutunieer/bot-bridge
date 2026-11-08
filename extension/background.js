@@ -4,7 +4,7 @@
 const EXT_VERSION = chrome.runtime.getManifest().version;
 const DEFAULTS = { port: 8765, token: "", enabled: true, allowEval: true };
 // Bump when the consent notice changes so earlier agreement is not reused. Store build only.
-const REQUIRED_CONSENT_VERSION = 2;
+const REQUIRED_CONSENT_VERSION = 3;
 
 let cfg = { ...DEFAULTS };
 let running = false;
@@ -250,6 +250,29 @@ function pageGetPage(maxChars, maxElements) {
     els.push(item);
     i++;
   }
+  // File inputs are often hidden behind a button. List them even when not visible.
+  // This does not read file bytes. Shadow roots are included.
+  const fileRoots = [document];
+  const seenFiles = new Set();
+  while (fileRoots.length && i < maxElements) {
+    const root = fileRoots.pop();
+    const nodes = root.querySelectorAll ? root.querySelectorAll("*") : [];
+    for (const el of nodes) {
+      if (el.shadowRoot) fileRoots.push(el.shadowRoot);
+      if (!el.tagName || el.tagName.toLowerCase() !== "input" || (el.getAttribute("type") || "").toLowerCase() !== "file") continue;
+      if (seenFiles.has(el) || el.hasAttribute("data-gbb-idx")) continue;
+      seenFiles.add(el);
+      if (i >= maxElements) break;
+      el.setAttribute("data-gbb-idx", String(i));
+      els.push({
+        index: i, tag: "input", role: "file", type: "file",
+        name: el.name || undefined, multiple: !!el.multiple,
+        accept: el.accept || undefined, hidden: true,
+        label: String(el.getAttribute("aria-label") || "").slice(0, 100),
+      });
+      i++;
+    }
+  }
   const text = (document.body ? document.body.innerText : "").replace(/\n{3,}/g, "\n\n");
   return {
     url: location.href, title: document.title,
@@ -340,13 +363,21 @@ function pageType(index, selector, text, clear, submit) {
   return { typed: true, value: shown, submitted };
 }
 
-function pagePressKey(key, index, selector) {
+function pagePressKey(key, index, selector, modifiers) {
   let el = selector ? document.querySelector(selector) : (index !== null && index !== undefined ? document.querySelector('[data-gbb-idx="' + index + '"]') : (document.activeElement || document.body));
   if (!el) return { __error: "target element not found" };
   if (el.focus && el !== document.body) el.focus();
+  const mods = Array.isArray(modifiers) ? modifiers.map((m) => String(m).toLowerCase()) : [];
   const codes = { Enter: 13, Tab: 9, Escape: 27, Backspace: 8, ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39, " ": 32, Delete: 46, Home: 36, End: 35, PageUp: 33, PageDown: 34 };
   const kc = codes[key] || (key.length === 1 ? key.toUpperCase().charCodeAt(0) : 0);
-  const ko = { key, code: key.length === 1 ? "Key" + key.toUpperCase() : key, keyCode: kc, which: kc, bubbles: true, cancelable: true };
+  const ko = {
+    key, code: key.length === 1 ? "Key" + key.toUpperCase() : key, keyCode: kc, which: kc,
+    bubbles: true, cancelable: true,
+    ctrlKey: mods.indexOf("control") !== -1 || mods.indexOf("ctrl") !== -1,
+    shiftKey: mods.indexOf("shift") !== -1,
+    altKey: mods.indexOf("alt") !== -1,
+    metaKey: mods.indexOf("meta") !== -1 || mods.indexOf("cmd") !== -1 || mods.indexOf("command") !== -1,
+  };
   const notCancelled = el.dispatchEvent(new KeyboardEvent("keydown", ko));
   if (key.length === 1 || key === "Enter") el.dispatchEvent(new KeyboardEvent("keypress", ko));
   el.dispatchEvent(new KeyboardEvent("keyup", ko));
@@ -359,7 +390,72 @@ function pagePressKey(key, index, selector) {
     else if (key === "End" && el === document.body) { scrollTo(0, document.body.scrollHeight); action = "scrolled"; }
     else if (key === "Home" && el === document.body) { scrollTo(0, 0); action = "scrolled"; }
   }
-  return { pressed: key, target: el.tagName.toLowerCase(), default_action: action };
+  return { pressed: key, modifiers: mods, target: el.tagName.toLowerCase(), default_action: action };
+}
+
+function pageApplyFiles(selector, index, files, mode, submit) {
+  // Packaged handler. Bytes arrive as base64 data, never as code.
+  const b64bytes = (b64) => {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    const step = 0x8000;
+    for (let i = 0; i < bin.length; i += step) {
+      const end = Math.min(i + step, bin.length);
+      for (let j = i; j < end; j++) out[j] = bin.charCodeAt(j);
+    }
+    return out;
+  };
+  const queryDeep = (sel, root) => {
+    const start = root || document;
+    const stack = [start];
+    while (stack.length) {
+      const node = stack.pop();
+      if (node.querySelector) {
+        const hit = node.querySelector(sel);
+        if (hit) return hit;
+        const all = node.querySelectorAll("*");
+        for (let i = 0; i < all.length; i++) if (all[i].shadowRoot) stack.push(all[i].shadowRoot);
+      }
+    }
+    return null;
+  };
+  let el = null;
+  if (selector) el = queryDeep(selector, document);
+  else if (index !== null && index !== undefined) el = document.querySelector('[data-gbb-idx="' + index + '"]');
+  else el = queryDeep("input[type=file]", document);
+  if (!el) return { __miss: true };
+  const dt = new DataTransfer();
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    dt.items.add(new File([b64bytes(f.data_base64)], f.name, { type: f.mime || "application/octet-stream" }));
+  }
+  if (mode === "drop") {
+    for (const type of ["dragenter", "dragover", "drop"]) {
+      el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }));
+    }
+    return { dropped: true, count: files.length, names: files.map((f) => f.name) };
+  }
+  const input = el.tagName && el.tagName.toLowerCase() === "input" && (el.getAttribute("type") || el.type || "").toLowerCase() === "file"
+    ? el : queryDeep("input[type=file]", el);
+  if (!input) return { __error: "target is not a file input (use mode drop for a drop target)" };
+  if (files.length > 1 && !input.multiple) return { __error: "this file input does not accept multiple files" };
+  input.files = dt.files;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  const names = [];
+  const sizes = [];
+  for (let i = 0; i < input.files.length; i++) { names.push(input.files[i].name); sizes.push(input.files[i].size); }
+  let submitted = false;
+  if (submit && input.form) {
+    if (input.form.requestSubmit) input.form.requestSubmit();
+    else input.form.submit();
+    submitted = true;
+  }
+  return {
+    set: true, count: input.files.length, names, sizes,
+    multiple: !!input.multiple, accept: input.accept || "",
+    submitted,
+  };
 }
 
 function pageScroll(direction, amount, to, index, selector) {
@@ -504,7 +600,7 @@ async function runCommand(c) {
     case "press_key": {
       if (!c.key) throw new Error("key required (e.g. Enter, Tab, Escape, ArrowDown, a)");
       const t = await getTab(c.tab_id);
-      const r = await inPage(t.id, pagePressKey, [c.key, idx, sel]);
+      const r = await inPage(t.id, pagePressKey, [c.key, idx, sel, c.modifiers || []]);
       await sleep(200);
       const after = await chrome.tabs.get(t.id);
       if (after.status === "loading") await waitForLoad(t.id, c.load_timeout_ms || 15000);
@@ -519,6 +615,41 @@ async function runCommand(c) {
       const t = await getTab(c.tab_id);
       return await inPage(t.id, pageWaitFor, [sel, c.text || null, c.timeout_ms || 10000, c.visible !== false]);
     }
+    case "upload": {
+      const files = Array.isArray(c.files) ? c.files : [];
+      if (!files.length) throw new Error("no files staged");
+      for (const f of files) {
+        if (!f || typeof f.data_base64 !== "string" || typeof f.name !== "string") throw new Error("staged file is incomplete");
+      }
+      const t = await getTab(c.tab_id);
+      const mode = c.mode === "drop" ? "drop" : "input";
+      const target = (c.frame_id !== undefined && c.frame_id !== null)
+        ? { tabId: t.id, frameIds: [Number(c.frame_id)] }
+        : (idx !== null ? { tabId: t.id } : { tabId: t.id, allFrames: true });
+      let frames;
+      try {
+        frames = await chrome.scripting.executeScript({
+          target, func: pageApplyFiles, args: [sel, idx, files, mode, !!c.submit], world: "MAIN",
+        });
+      } catch (e) {
+        throw new Error("cannot script this page (" + ((e && e.message) || e) + "). chrome://, the Web Store and some built-in pages are off-limits.");
+      }
+      const hits = (frames || []).filter((f) => f && f.result && !f.result.__miss);
+      const errored = hits.find((f) => f.result.__error);
+      if (!hits.length) throw new Error(mode === "drop" ? "drop target not found" : "file input not found");
+      if (errored) throw new Error(errored.result.__error);
+      if (hits.length > 1) {
+        throw new Error("file target matched " + hits.length + " frames (" + hits.map((f) => f.frameId).join(", ") + "). Pass frame_id.");
+      }
+      const hit = hits[0];
+      if (c.submit) {
+        await sleep(300);
+        const after = await chrome.tabs.get(t.id);
+        if (after.status === "loading") await waitForLoad(t.id, c.load_timeout_ms || 20000);
+      }
+      const fin = await chrome.tabs.get(t.id);
+      return { ...hit.result, frame_id: hit.frameId, tab_id: t.id, url: fin.url };
+    }
     case "eval": {
       await loadCfg();
       if (!cfg.allowEval) throw new Error("eval is disabled in the extension settings");
@@ -527,6 +658,6 @@ async function runCommand(c) {
       return await inPage(t.id, pageEval, [c.expression], "MAIN");
     }
     default:
-      throw new Error("unknown cmd '" + name + "'. Known: ping, list_tabs, open_url, navigate, activate_tab, close_tab, screenshot, get_page, click, type, press_key, scroll, wait_for, back, forward, reload, eval");
+      throw new Error("unknown cmd '" + name + "'. Known: ping, list_tabs, open_url, navigate, activate_tab, close_tab, screenshot, get_page, click, type, press_key, scroll, wait_for, upload, back, forward, reload, eval");
   }
 }
