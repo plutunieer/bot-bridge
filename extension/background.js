@@ -393,69 +393,79 @@ function pagePressKey(key, index, selector, modifiers) {
   return { pressed: key, modifiers: mods, target: el.tagName.toLowerCase(), default_action: action };
 }
 
-function pageApplyFiles(selector, index, files, mode, submit) {
-  // Packaged handler. Bytes arrive as base64 data, never as code.
-  const b64bytes = (b64) => {
-    const bin = atob(b64);
-    const out = new Uint8Array(bin.length);
-    const step = 0x8000;
-    for (let i = 0; i < bin.length; i += step) {
-      const end = Math.min(i + step, bin.length);
-      for (let j = i; j < end; j++) out[j] = bin.charCodeAt(j);
-    }
-    return out;
-  };
+function pageUpload(op, selector, index, mode, files, port, token, submit) {
+  // Isolated world. It fetches each staged file from the loopback bridge with the
+  // extension token (not visible to the page) and builds a File from the Blob.
+  // Chrome can spill that Blob to disk; arguments to this function stay small.
   const queryDeep = (sel, root) => {
     const start = root || document;
     const stack = [start];
     while (stack.length) {
       const node = stack.pop();
-      if (node.querySelector) {
-        const hit = node.querySelector(sel);
-        if (hit) return hit;
-        const all = node.querySelectorAll("*");
-        for (let i = 0; i < all.length; i++) if (all[i].shadowRoot) stack.push(all[i].shadowRoot);
-      }
+      if (!node || !node.querySelector) continue;
+      const hit = node.querySelector(sel);
+      if (hit) return hit;
+      const all = node.querySelectorAll("*");
+      for (let i = 0; i < all.length; i++) if (all[i].shadowRoot) stack.push(all[i].shadowRoot);
     }
     return null;
   };
-  let el = null;
-  if (selector) el = queryDeep(selector, document);
-  else if (index !== null && index !== undefined) el = document.querySelector('[data-gbb-idx="' + index + '"]');
-  else el = queryDeep("input[type=file]", document);
-  if (!el) return { __miss: true };
-  const dt = new DataTransfer();
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i];
-    dt.items.add(new File([b64bytes(f.data_base64)], f.name, { type: f.mime || "application/octet-stream" }));
-  }
-  if (mode === "drop") {
-    for (const type of ["dragenter", "dragover", "drop"]) {
-      el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }));
-    }
-    return { dropped: true, count: files.length, names: files.map((f) => f.name) };
-  }
-  const input = el.tagName && el.tagName.toLowerCase() === "input" && (el.getAttribute("type") || el.type || "").toLowerCase() === "file"
-    ? el : queryDeep("input[type=file]", el);
-  if (!input) return { __error: "target is not a file input (use mode drop for a drop target)" };
-  if (files.length > 1 && !input.multiple) return { __error: "this file input does not accept multiple files" };
-  input.files = dt.files;
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
-  const names = [];
-  const sizes = [];
-  for (let i = 0; i < input.files.length; i++) { names.push(input.files[i].name); sizes.push(input.files[i].size); }
-  let submitted = false;
-  if (submit && input.form) {
-    if (input.form.requestSubmit) input.form.requestSubmit();
-    else input.form.submit();
-    submitted = true;
-  }
-  return {
-    set: true, count: input.files.length, names, sizes,
-    multiple: !!input.multiple, accept: input.accept || "",
-    submitted,
+  const findEl = (sel, idx, which) => {
+    if (sel) return queryDeep(sel, document);
+    if (idx !== null && idx !== undefined) return document.querySelector('[data-gbb-idx="' + idx + '"]');
+    if (which === "drop") return null;
+    return queryDeep("input[type=file]", document);
   };
+  const el = findEl(selector, index, mode);
+  if (op === "find") return el ? { found: true } : { __miss: true };
+  if (!el) return { __miss: true };
+  return (async () => {
+    const built = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      let resp;
+      try {
+        resp = await fetch("http://127.0.0.1:" + port + "/blob/" + encodeURIComponent(f.id), {
+          headers: { "X-Token": token },
+          cache: "no-store",
+        });
+      } catch (e) {
+        return { __error: "upload transfer failed: " + String(e && e.message || e).slice(0, 160) };
+      }
+      if (!resp.ok) return { __error: "upload transfer failed (" + resp.status + ")" };
+      const blob = await resp.blob();
+      if (typeof f.size === "number" && blob.size !== f.size) return { __error: "upload size mismatch" };
+      built.push(new File([blob], f.name, { type: f.mime || "application/octet-stream" }));
+    }
+    const dt = new DataTransfer();
+    for (let i = 0; i < built.length; i++) dt.items.add(built[i]);
+    if (mode === "drop") {
+      for (const type of ["dragenter", "dragover", "drop"]) {
+        el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }));
+      }
+      return { dropped: true, count: built.length, names: built.map((f) => f.name) };
+    }
+    const input = el.tagName && el.tagName.toLowerCase() === "input" && String(el.getAttribute("type") || el.type || "").toLowerCase() === "file"
+      ? el : queryDeep("input[type=file]", el);
+    if (!input) return { __error: "target is not a file input (use mode drop for a drop target)" };
+    if (built.length > 1 && !input.multiple) return { __error: "this file input does not accept multiple files" };
+    input.files = dt.files;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    const names = [];
+    const sizes = [];
+    for (let i = 0; i < input.files.length; i++) { names.push(input.files[i].name); sizes.push(input.files[i].size); }
+    let submitted = false;
+    if (submit && input.form) {
+      if (input.form.requestSubmit) input.form.requestSubmit();
+      else input.form.submit();
+      submitted = true;
+    }
+    return {
+      set: true, count: input.files.length, names, sizes,
+      multiple: !!input.multiple, accept: input.accept || "", submitted,
+    };
+  })();
 }
 
 function pageScroll(direction, amount, to, index, selector) {
@@ -619,7 +629,7 @@ async function runCommand(c) {
       const files = Array.isArray(c.files) ? c.files : [];
       if (!files.length) throw new Error("no files staged");
       for (const f of files) {
-        if (!f || typeof f.data_base64 !== "string" || typeof f.name !== "string") throw new Error("staged file is incomplete");
+        if (!f || typeof f.id !== "string" || typeof f.name !== "string") throw new Error("staged file is incomplete");
       }
       const t = await getTab(c.tab_id);
       const mode = c.mode === "drop" ? "drop" : "input";
@@ -629,26 +639,39 @@ async function runCommand(c) {
       let frames;
       try {
         frames = await chrome.scripting.executeScript({
-          target, func: pageApplyFiles, args: [sel, idx, files, mode, !!c.submit], world: "MAIN",
+          target, func: pageUpload, args: ["find", sel, idx, mode], world: "ISOLATED",
         });
       } catch (e) {
         throw new Error("cannot script this page (" + ((e && e.message) || e) + "). chrome://, the Web Store and some built-in pages are off-limits.");
       }
-      const hits = (frames || []).filter((f) => f && f.result && !f.result.__miss);
-      const errored = hits.find((f) => f.result.__error);
+      const hits = (frames || []).filter((f) => f && f.result && f.result.found);
       if (!hits.length) throw new Error(mode === "drop" ? "drop target not found" : "file input not found");
-      if (errored) throw new Error(errored.result.__error);
       if (hits.length > 1) {
         throw new Error("file target matched " + hits.length + " frames (" + hits.map((f) => f.frameId).join(", ") + "). Pass frame_id.");
       }
-      const hit = hits[0];
+      const frameId = hits[0].frameId;
+      let applied;
+      try {
+        const run = await chrome.scripting.executeScript({
+          target: { tabId: t.id, frameIds: [frameId] },
+          func: pageUpload,
+          world: "ISOLATED",
+          args: ["apply", sel, idx, mode, files, cfg.port, cfg.token, !!c.submit],
+        });
+        applied = run && run[0] && run[0].result;
+      } catch (e) {
+        const detail = String((e && e.message) || e || "");
+        throw new Error("upload transfer failed" + (detail ? ": " + detail.slice(0, 180) : ""));
+      }
+      if (!applied || applied.__error) throw new Error((applied && applied.__error) || "upload transfer failed");
+      if (applied.__miss) throw new Error(mode === "drop" ? "drop target not found" : "file input not found");
       if (c.submit) {
         await sleep(300);
         const after = await chrome.tabs.get(t.id);
-        if (after.status === "loading") await waitForLoad(t.id, c.load_timeout_ms || 20000);
+        if (after.status === "loading") await waitForLoad(t.id, c.load_timeout_ms || 120000);
       }
       const fin = await chrome.tabs.get(t.id);
-      return { ...hit.result, frame_id: hit.frameId, tab_id: t.id, url: fin.url };
+      return { ...applied, frame_id: frameId, tab_id: t.id, url: fin.url };
     }
     case "eval": {
       await loadCfg();

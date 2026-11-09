@@ -22,7 +22,7 @@
 
 <section id="en">
 <h1>Privacy Policy – Bot Bridge</h1>
-<p class="meta">Chrome extension version 1.0.4 · Last updated: 8 November 2026</p>
+<p class="meta">Chrome extension version 1.0.5 · Last updated: 9 November 2026</p>
 
 <h2>Summary</h2>
 <p>The extension's own network traffic goes only to the bridge app you run on your computer, at <code>http://127.0.0.1</code>. The extension does not send page data to the developer. There is no analytics, tracking, advertising, or account.</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Files you name</h2>
-<p>When a command names a file on the computer where the bridge is running, the bridge reads that regular file and the extension places those bytes into a file input or a drop target on the page. This is not a general view of your disk: there is no directory listing, no glob, and no read of a file the command did not name. Each file is limited to 16 MB and a command to 24 MB and 8 files. The filename sent to the page is the file's base name, not the full path.</p>
+<p>When a command names a file on the computer where the bridge is running, the bridge reads that regular file and the extension places those bytes into a file input or a drop target on the page. This is not a general view of your disk: there is no directory listing, no glob, and no read of a file the command did not name. There is no default size ceiling. The bridge streams the file and Chrome keeps the resulting file on disk-backed blob storage, so a multi-gigabyte video does not have to sit in the bridge as one base64 string. You can set <code>max_upload_bytes</code> in the bridge config to a positive number if you want a ceiling; <code>0</code> or omitting it means unlimited. A transfer that makes no progress for 2 minutes is cancelled. The filename sent to the page is the file's base name, not the full path. A website or Chrome itself can still refuse a file that is larger than that site or that browser build allows.</p>
 <p>A symlink is resolved and both the path you named and the real path are reported back to the assistant. Devices, directories, and other non-regular files are refused. The bridge does not log file contents. After the bytes are in the page, the website can upload them off your device if you submit the form or the page uploads on its own. That is the point of choosing a file. The developer does not receive the file.</p>
 <p>Paths are on the computer running <code>bridge.py</code>. A file that exists only on an assistant's own computer is not on that machine until you copy it there with the file-transfer tool that assistant already uses. This extension is not an automatically connected remote file service.</p>
 
@@ -107,7 +107,7 @@
 
 <section id="de" lang="de">
 <h1>Datenschutzerklärung – Bot Bridge</h1>
-<p class="meta">Chrome-Erweiterung Version 1.0.4 · Stand: 8. November 2026</p>
+<p class="meta">Chrome-Erweiterung Version 1.0.5 · Stand: 9. November 2026</p>
 
 <h2>Kurz gesagt</h2>
 <p>Der eigene Netzwerkverkehr der Erweiterung geht nur an die Bridge-App, die du auf deinem Computer betreibst, unter <code>http://127.0.0.1</code>. Die Erweiterung sendet Seitendaten nicht an den Entwickler. Keine Analyse, kein Tracking, keine Werbung, kein Konto.</p>
@@ -150,7 +150,7 @@
 </ul>
 
 <h2>Dateien, die du nennst</h2>
-<p>Wenn ein Befehl eine Datei auf dem Computer nennt, auf dem die Bridge läuft, liest die Bridge diese reguläre Datei und die Erweiterung setzt die Bytes in ein Dateifeld oder ein Drop-Ziel auf der Seite. Das ist keine allgemeine Sicht auf deine Festplatte: kein Verzeichnislisting, kein Glob und kein Lesen einer Datei, die der Befehl nicht nennt. Jede Datei ist auf 16 MB begrenzt, ein Befehl auf 24 MB und 8 Dateien. Der Dateiname, der an die Seite geht, ist der Basisname, nicht der volle Pfad.</p>
+<p>Wenn ein Befehl eine Datei auf dem Computer nennt, auf dem die Bridge läuft, liest die Bridge diese reguläre Datei und die Erweiterung setzt die Bytes in ein Dateifeld oder ein Drop-Ziel auf der Seite. Das ist keine allgemeine Sicht auf deine Festplatte: kein Verzeichnislisting, kein Glob und kein Lesen einer Datei, die der Befehl nicht nennt. Es gibt keine Standard-Grössengrenze. Die Bridge streamt die Datei, und Chrome hält die entstandene Datei in einem Blob, der auf die Festplatte ausgelagert werden kann, statt sie als einen Base64-String im Speicher zu halten. <code>max_upload_bytes</code> in der Bridge-Konfiguration setzt eine optionale Obergrenze; <code>0</code> oder das Weglassen bedeutet unbegrenzt. Eine Übertragung ohne Fortschritt für 2 Minuten wird abgebrochen. Der Dateiname, der an die Seite geht, ist der Basisname, nicht der volle Pfad. Eine Website oder Chrome selbst kann eine Datei trotzdem ablehnen, wenn sie grösser ist, als diese Seite oder dieser Browser zulässt.</p>
 <p>Ein Symlink wird aufgelöst, und sowohl der genannte Pfad als auch der reale Pfad werden dem Assistenten gemeldet. Geräte, Verzeichnisse und andere nicht-reguläre Dateien werden abgelehnt. Die Bridge schreibt keine Dateiinhalte ins Log. Sobald die Bytes in der Seite sind, kann die Website sie ausserhalb deines Geräts hochladen, wenn du das Formular sendest oder die Seite selbst hochlädt. Genau dafür wählt man eine Datei. Der Entwickler erhält die Datei nicht.</p>
 <p>Pfade liegen auf dem Computer, auf dem <code>bridge.py</code> läuft. Eine Datei, die nur auf dem Computer des Assistenten existiert, ist dort nicht, bis du sie mit dem Dateitransfer kopierst, den dieser Assistent bereits benutzt. Diese Erweiterung ist kein automatisch verbundener Ferndienst für Dateien.</p>
 

@@ -1,4 +1,4 @@
-# Chrome Web Store – submission checklist (Bot Bridge 1.0.4)
+# Chrome Web Store – submission checklist (Bot Bridge 1.0.5)
 
 Do not submit this package while 1.0.3 is pending review. This checklist is for a later upload.
 

@@ -73,7 +73,7 @@ All page commands accept an optional `"tab_id"`; without it they act on the **ac
 | `scroll` | `direction` up/down/left/right + `amount` px, or `to` top/bottom, or `index`/`selector` to scroll into view | `{x, y, max_y}` |
 | `wait_for` | `selector` or `text`, `timeout_ms` (10000), `visible` (true) | `{found, waited_ms}` |
 | `screenshot` | `tab_id?`, `format` png/jpeg, `save_path` (file on the user's computer), `include_data` | `data_base64` PNG, or `saved_path` |
-| `upload` | `path` or `paths` (files on the computer running the bridge), `selector` or `index`, `submit` (false), `mode` `input` (default) or `drop`, `frame_id?` | `{set, count, names, sizes, files:[{name, size, sha256, real_path}]}`. Caps: 8 files, 16 MB each, 24 MB total. Does not open the OS file dialog. |
+| `upload` | `path` or `paths` (files on the computer running the bridge), `selector` or `index`, `submit` (false), `mode` `input` (default) or `drop`, `frame_id?`, `timeout` seconds | `{set, count, names, sizes, files:[{name, size, sha256, bytes_sent, real_path}]}`. No default size cap. Optional config `max_upload_bytes` (0 = unlimited). Does not open the OS file dialog. Progress is printed to stderr as byte counts. |
 | `eval` | `expression` (JS, may return a Promise) | `{value}` (JSON-serialised). **Only in the local developer build**; the Chrome Web Store build has no `eval` (answers "unknown cmd"), and the user can switch it off. Prefer `get_page`. |
 
 `get_page` → `elements[]` items look like:

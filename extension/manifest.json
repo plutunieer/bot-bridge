@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Bot Bridge",
   "short_name": "Bot Bridge",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Lets your own AI assistant control this Chrome via a bridge on this computer. The extension talks only to 127.0.0.1.",
   "minimum_chrome_version": "116",
   "permissions": [

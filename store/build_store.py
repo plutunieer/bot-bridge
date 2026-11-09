@@ -8,7 +8,7 @@ Store build differences (Chrome Web Store / MV3 remote-code policy):
     action runs code that ships inside the extension package; the bridge only
     sends data (command name, URL, selector, text), never code.
   * `activeTab` permission dropped (redundant with the host permission).
-  * version 1.0.4, store-oriented description, popup help line, en/de locales, consent screen.
+  * version 1.0.5, store-oriented description, popup help line, en/de locales, consent screen.
 """
 import json, os, re, shutil, sys, zipfile
 
@@ -17,7 +17,7 @@ ROOT = os.path.dirname(HERE)
 SRC = os.path.join(ROOT, "extension")
 OUT = os.path.join(HERE, "extension")
 DIST = os.path.join(ROOT, "dist")
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 
 def rep(s, old, new, count=1):
     if old not in s:

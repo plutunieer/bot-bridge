@@ -36,7 +36,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 DEFAULT_PORT = 8765
 _HOME = os.path.expanduser("~")
 CONFIG_DIR = os.path.join(_HOME, ".bot-bridge")
@@ -48,11 +48,12 @@ POLL_WAIT = 25          # seconds a /next long-poll is held open
 CONNECTED_GRACE = 40    # extension counts as connected if it polled within this window
 DEFAULT_TIMEOUT = 30    # seconds /command waits for a result
 MAX_BODY = 64 * 1024 * 1024
-# Upload reads only paths named in that command. Caps keep one command from
-# turning the bridge into an unbounded disk read.
-MAX_UPLOAD_FILES = 8
-MAX_UPLOAD_BYTES = 16 * 1024 * 1024
-MAX_UPLOAD_TOTAL = 24 * 1024 * 1024
+# How many named files one command may open. This is a file-descriptor guard,
+# not a size cap. Size is unlimited unless config max_upload_bytes is set.
+MAX_UPLOAD_FILES = 100
+UPLOAD_CHUNK = 1024 * 1024
+UPLOAD_STALL_SECONDS = 120
+UPLOAD_DEFAULT_WAIT = 6 * 3600
 
 
 # ---------------------------------------------------------------- config
@@ -139,12 +140,88 @@ def _save_screenshot_if_requested(cmd, result):
     return result
 
 
-def stage_upload_files(body):
-    """Read regular files explicitly named by an upload command.
+class UploadSession:
+    """One named file, held as an open descriptor until it is streamed once."""
+
+    def __init__(self, sid, fd, size, name, mime, requested, real):
+        self.id = sid
+        self.fd = fd
+        self.size = size
+        self.name = name
+        self.mime = mime
+        self.requested_path = requested
+        self.real_path = real
+        self.bytes_sent = 0
+        self.sha256 = None
+        self.done = False
+        self.cancelled = False
+        self.error = None
+        self.started = False
+        self.last_progress = 0.0
+        self.finished = threading.Event()
+        self._closed = False
+
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+        try:
+            os.close(self.fd)
+        except OSError:
+            pass
+
+
+class UploadSessions:
+    def __init__(self):
+        self._items = {}
+        self._lock = threading.Lock()
+
+    def add(self, sess):
+        with self._lock:
+            self._items[sess.id] = sess
+
+    def get(self, sid):
+        with self._lock:
+            return self._items.get(sid)
+
+    def drop(self, sid):
+        with self._lock:
+            sess = self._items.pop(sid, None)
+        if sess:
+            sess.cancelled = True
+            sess.finished.set()
+            sess.close()
+        return sess
+
+    def ids(self):
+        with self._lock:
+            return list(self._items.keys())
+
+
+UPLOADS = UploadSessions()
+
+
+def configured_upload_limit():
+    """Positive max_upload_bytes from config, or None when unlimited (the default)."""
+    cfg = load_config(create=False)
+    if "max_upload_bytes" not in cfg or cfg.get("max_upload_bytes") in (None, "", False):
+        return None
+    raw = cfg.get("max_upload_bytes")
+    try:
+        limit = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError("max_upload_bytes in the bridge config must be an integer (0 means unlimited)")
+    if limit <= 0:
+        return None
+    return limit
+
+
+def stage_upload_files(body, limit=None):
+    """Open regular files explicitly named by an upload command.
 
     Caller-supplied file bytes are ignored. There is no directory listing,
-    glob, or general read endpoint. Symlinks are resolved and both paths are
-    reported; the opened inode must be a regular file within the size cap.
+    glob, or general read endpoint. The file is not read here; the extension
+    streams it later. Symlinks are resolved and both paths are reported.
     """
     if not isinstance(body, dict):
         raise ValueError("upload body must be an object")
@@ -157,50 +234,81 @@ def stage_upload_files(body):
         raise ValueError("path or paths required")
     if len(paths) > MAX_UPLOAD_FILES:
         raise ValueError("too many files (limit %d)" % MAX_UPLOAD_FILES)
-    files = []
-    total = 0
-    for raw in paths:
-        if not isinstance(raw, str) or not raw.strip() or "\x00" in raw:
-            raise ValueError("invalid path")
-        requested = raw
-        expanded = os.path.expanduser(raw)
-        real = os.path.realpath(expanded)
-        flags = os.O_RDONLY
-        if hasattr(os, "O_NOFOLLOW"):
-            flags |= os.O_NOFOLLOW
-        try:
-            fd = os.open(real, flags)
-        except OSError as e:
-            raise ValueError("cannot open file: %s" % e.strerror)
-        try:
-            st = os.fstat(fd)
-            if not stat.S_ISREG(st.st_mode):
-                raise ValueError("not a regular file")
-            if st.st_size > MAX_UPLOAD_BYTES:
-                raise ValueError("file too large (%d bytes, limit %d)" % (st.st_size, MAX_UPLOAD_BYTES))
-            total += st.st_size
-            if total > MAX_UPLOAD_TOTAL:
-                raise ValueError("upload too large (limit %d bytes)" % MAX_UPLOAD_TOTAL)
-            data = os.read(fd, st.st_size)
-            if len(data) != st.st_size:
-                raise ValueError("file changed while reading")
-        finally:
-            os.close(fd)
-        mime = mimetypes.guess_type(os.path.basename(real))[0] or "application/octet-stream"
-        files.append({
-            "name": os.path.basename(real) or "file",
-            "mime": mime,
-            "size": len(data),
-            "sha256": hashlib.sha256(data).hexdigest(),
-            "requested_path": requested,
-            "real_path": real,
-            "data_base64": base64.b64encode(data).decode("ascii"),
-        })
-    return files
+    opened = []
+    try:
+        for raw in paths:
+            if not isinstance(raw, str) or not raw.strip() or "\x00" in raw:
+                raise ValueError("invalid path")
+            requested = raw
+            real = os.path.realpath(os.path.expanduser(raw))
+            flags = os.O_RDONLY
+            if hasattr(os, "O_NOFOLLOW"):
+                flags |= os.O_NOFOLLOW
+            try:
+                fd = os.open(real, flags)
+            except OSError as e:
+                raise ValueError("cannot open file: %s" % e.strerror)
+            try:
+                st = os.fstat(fd)
+                if not stat.S_ISREG(st.st_mode):
+                    os.close(fd)
+                    raise ValueError("not a regular file")
+                if limit is not None and st.st_size > limit:
+                    os.close(fd)
+                    raise ValueError(
+                        "file exceeds configured max_upload_bytes (%d bytes, limit %d). "
+                        "The default is unlimited; set max_upload_bytes to 0 to clear a limit."
+                        % (st.st_size, limit)
+                    )
+            except Exception:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+                raise
+            mime = mimetypes.guess_type(os.path.basename(real))[0] or "application/octet-stream"
+            sess = UploadSession(
+                secrets.token_urlsafe(18), fd, st.st_size,
+                os.path.basename(real) or "file", mime, requested, real,
+            )
+            UPLOADS.add(sess)
+            opened.append(sess)
+    except Exception:
+        for sess in opened:
+            UPLOADS.drop(sess.id)
+        raise
+    return [{
+        "id": s.id,
+        "name": s.name,
+        "mime": s.mime,
+        "size": s.size,
+        "requested_path": s.requested_path,
+        "real_path": s.real_path,
+    } for s in opened]
+
+
+def release_staged(files):
+    for item in files or []:
+        if isinstance(item, dict) and item.get("id"):
+            UPLOADS.drop(item["id"])
 
 
 def _upload_public_meta(files):
-    return [{k: f[k] for k in ("name", "mime", "size", "sha256", "requested_path", "real_path")} for f in files]
+    meta = []
+    for item in files:
+        sess = UPLOADS.get(item["id"]) if isinstance(item, dict) else None
+        row = {
+            "name": item.get("name"),
+            "mime": item.get("mime"),
+            "size": item.get("size"),
+            "requested_path": item.get("requested_path"),
+            "real_path": item.get("real_path"),
+            "bytes_sent": sess.bytes_sent if sess else 0,
+        }
+        if sess and sess.sha256:
+            row["sha256"] = sess.sha256
+        meta.append(row)
+    return meta
 
 
 def _host_name(value):
@@ -245,15 +353,17 @@ class Handler(BaseHTTPRequestHandler):
         if body:
             self.wfile.write(body)
 
-    def _authorized(self):
+    def _authorized(self, allow_web_origin=False):
         # DNS-rebinding protection: only accept a loopback Host, exact name, not a suffix.
         if _host_name(self.headers.get("Host")) not in ("127.0.0.1", "localhost", "::1"):
             self._send(403, {"ok": False, "error": "bad host"})
             return False
-        # Browsers always send Origin. Web origins are refused even if they know the token.
+        # Browsers always send Origin. Command routes refuse web origins even with the token.
         # CLI clients omit Origin. Extension origins are chrome-extension://<32-char id>.
+        # /blob/ is fetched by the extension's isolated world, which sends the page's Origin,
+        # so that route allows it and still requires the token plus an unguessable id.
         origin = self.headers.get("Origin") or ""
-        if origin and not _allowed_extension_origin(origin):
+        if origin and not _allowed_extension_origin(origin) and not allow_web_origin:
             self._send(403, {"ok": False, "error": "origin not allowed"})
             return False
         expected = STATE.token if isinstance(STATE.token, str) else ""
@@ -278,13 +388,87 @@ class Handler(BaseHTTPRequestHandler):
         return (time.time() - STATE.last_poll) < CONNECTED_GRACE
 
     # --- routes
+    def _cors_blob(self, origin):
+        """Let the extension's isolated world read a staged file.
+
+        The page itself still needs the bridge token and the unguessable blob id.
+        Command routes stay without these headers.
+        """
+        if not origin or any(c in origin for c in "\r\n"):
+            origin = "null"
+        self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.send_header("Vary", "Origin")
+
     def do_OPTIONS(self):
+        path = self.path.split("?")[0]
+        if path.startswith("/blob/"):
+            self.send_response(204)
+            self._cors_blob(self.headers.get("Origin"))
+            self.send_header("Access-Control-Allow-Methods", "GET")
+            self.send_header("Access-Control-Allow-Headers", "X-Token, Content-Type")
+            self.send_header("Access-Control-Max-Age", "600")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         self._send(403, {"ok": False, "error": "CORS not supported"})
 
+    def _stream_blob(self, sess):
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", sess.mime)
+            self.send_header("Content-Length", str(sess.size))
+            self.send_header("Cache-Control", "no-store")
+            self._cors_blob(self.headers.get("Origin"))
+            self.end_headers()
+            digest = hashlib.sha256()
+            remaining = sess.size
+            sess.started = True
+            sess.last_progress = time.time()
+            while remaining:
+                if sess.cancelled:
+                    sess.error = sess.error or "cancelled"
+                    return
+                chunk = os.read(sess.fd, min(UPLOAD_CHUNK, remaining))
+                if not chunk:
+                    sess.error = "file ended early"
+                    return
+                if len(chunk) > remaining:
+                    chunk = chunk[:remaining]
+                digest.update(chunk)
+                self.wfile.write(chunk)
+                remaining -= len(chunk)
+                sess.bytes_sent += len(chunk)
+                sess.last_progress = time.time()
+            if remaining == 0 and not sess.cancelled:
+                sess.sha256 = digest.hexdigest()
+                sess.done = True
+        except Exception as e:
+            if not sess.error:
+                sess.error = "transfer interrupted"
+            _ = e
+        finally:
+            sess.finished.set()
+            sess.close()
+
     def do_GET(self):
-        if not self._authorized():
-            return
         path = self.path.split("?")[0]
+        blob = path.startswith("/blob/")
+        if not self._authorized(allow_web_origin=blob):
+            return
+        if path.startswith("/blob/"):
+            sid = path[len("/blob/"):]
+            if not sid or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-" for c in sid):
+                self._send(404, {"ok": False, "error": "unknown upload"})
+                return
+            sess = UPLOADS.get(sid)
+            if not sess or sess.done or sess.cancelled:
+                self._send(404, {"ok": False, "error": "unknown upload"})
+                return
+            self._stream_blob(sess)
+            if not sess.done:
+                UPLOADS.drop(sid)
+            return
         if path == "/status":
             self._send(200, {
                 "ok": True,
@@ -361,44 +545,89 @@ class Handler(BaseHTTPRequestHandler):
             if not self._connected():
                 self._send(503, {"ok": False, "error": "extension not connected (is Chrome open and the extension enabled with the right port/token?)"})
                 return
-            upload_meta = None
+            staged = None
             if body.get("cmd") == "upload":
-                # Never accept bytes from the caller. Stage only named regular files,
+                # Never accept bytes from the caller. Open only named regular files,
                 # and only after the extension is connected, so a refused command
-                # does not read the disk.
+                # does not touch the disk. Bytes are streamed later on GET /blob/<id>.
                 body.pop("files", None)
                 body.pop("data_base64", None)
                 try:
-                    staged = stage_upload_files(body)
+                    staged = stage_upload_files(body, configured_upload_limit())
                 except ValueError as e:
                     self._send(400, {"ok": False, "error": str(e)})
                     return
-                upload_meta = _upload_public_meta(staged)
                 body = dict(body)
                 body["files"] = staged
-            timeout = float(body.get("timeout") or DEFAULT_TIMEOUT)
-            timeout = max(1.0, min(timeout, 300.0))
+            if body.get("cmd") == "upload":
+                if body.get("timeout") is None:
+                    timeout = UPLOAD_DEFAULT_WAIT
+                else:
+                    timeout = float(body.get("timeout"))
+                    timeout = max(1.0, min(timeout, UPLOAD_DEFAULT_WAIT))
+            else:
+                timeout = float(body.get("timeout") or DEFAULT_TIMEOUT)
+                timeout = max(1.0, min(timeout, 300.0))
             cid = uuid.uuid4().hex
             ev = threading.Event()
             with STATE.lock:
                 STATE.waiters[cid] = {"event": ev, "result": None}
             STATE.pending.put({"id": cid, "command": body})
-            got = ev.wait(timeout)
+            deadline = time.time() + timeout
+            last_note = 0.0
+            got = False
+            stalled = False
+            while True:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    break
+                if staged:
+                    for item in staged:
+                        sess = UPLOADS.get(item["id"])
+                        if sess and sess.started and not sess.done and not sess.cancelled:
+                            if time.time() - sess.last_progress > UPLOAD_STALL_SECONDS:
+                                sess.error = "stalled"
+                                stalled = True
+                    if stalled:
+                        break
+                    now = time.time()
+                    if now - last_note >= 1.0:
+                        sent = 0
+                        total = 0
+                        for item in staged:
+                            sess = UPLOADS.get(item["id"])
+                            total += int(item.get("size") or 0)
+                            if sess:
+                                sent += sess.bytes_sent
+                        if sent:
+                            print("upload %d/%d bytes" % (sent, total), file=sys.stderr)
+                        last_note = now
+                if ev.wait(min(0.5, remaining)):
+                    got = True
+                    break
             with STATE.lock:
                 w = STATE.waiters.pop(cid, None)
             if not got or not w or w["result"] is None:
-                self._send(504, {"ok": False, "error": "timeout after %.0fs waiting for the extension" % timeout})
+                release_staged(staged)
+                reason = "stalled" if stalled else "timeout"
+                # Sessions were dropped above; the error string must not include paths or bytes.
+                self._send(504, {"ok": False, "error": "upload %s" % reason if body.get("cmd") == "upload" else "timeout after %.0fs waiting for the extension" % timeout})
                 return
             res = w["result"]
             out = {"ok": bool(res.get("ok")), "cmd": body.get("cmd")}
             if res.get("ok"):
                 out["result"] = res.get("result") if isinstance(res.get("result"), dict) else {"value": res.get("result")}
-                if upload_meta is not None:
-                    # Confirm what was read. Do not return file bytes.
-                    out["result"]["files"] = upload_meta
+                if staged is not None:
+                    incomplete = [item for item in staged if not (UPLOADS.get(item["id"]) and UPLOADS.get(item["id"]).done)]
+                    if incomplete:
+                        release_staged(staged)
+                        self._send(502, {"ok": False, "error": "upload transfer did not finish"})
+                        return
+                    out["result"]["files"] = _upload_public_meta(staged)
                     out["result"].pop("data_base64", None)
             else:
                 out["error"] = res.get("error") or "unknown error"
+            release_staged(staged)
             out = _save_screenshot_if_requested(body, out)
             self._send(200, out)
         else:
@@ -434,6 +663,18 @@ def serve(port):
         pass
     finally:
         srv.server_close()
+
+
+def _client_timeout(body):
+    """How long the CLI waits. Uploads default to the bridge's long wait."""
+    if isinstance(body, dict) and body.get("cmd") == "upload":
+        if body.get("timeout"):
+            try:
+                return float(body["timeout"]) + 30
+            except (TypeError, ValueError):
+                return UPLOAD_DEFAULT_WAIT + 30
+        return UPLOAD_DEFAULT_WAIT + 30
+    return 330
 
 
 def _call(method, path, body=None, timeout=330):
@@ -498,7 +739,7 @@ def main(argv=None):
                     body[k] = json.loads(v)
                 except Exception:
                     body[k] = v
-        res = _call("POST", "/command", body)
+        res = _call("POST", "/command", body, timeout=_client_timeout(body))
         print(json.dumps(res, indent=2, ensure_ascii=False))
         return 0 if res.get("ok") else 1
     return 0

@@ -1,9 +1,8 @@
 """Loopback page that accepts real multipart uploads. Test fixture only."""
-import email
 import hashlib
 import json
+import re
 import threading
-from email import policy
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PAGE = """<!doctype html>
@@ -54,25 +53,68 @@ FRAME = """<!doctype html><meta charset="utf-8"><title>frame</title><body>
 </body>"""
 
 
-def parse_multipart(body, content_type):
-    header = ("MIME-Version: 1.0\r\nContent-Type: %s\r\n\r\n" % content_type).encode()
-    msg = email.message_from_bytes(header + body, policy=policy.default)
+def _boundary(content_type):
+    match = re.search(r'boundary="?([^";]+)"?', content_type or "")
+    if not match:
+        raise ValueError("missing multipart boundary")
+    return match.group(1).encode()
+
+
+def hash_multipart(chunks, content_type):
+    """Hash file parts from a multipart body without keeping the bytes.
+
+    chunks is an iterator of bytes. Returns [{sha256, size}, ...].
+    """
+    boundary = _boundary(content_type)
+    marker = b"\r\n--" + boundary
+    pending = b""
+    in_file = False
+    digest = None
+    size = 0
     found = []
-    if not msg.is_multipart():
-        return found
-    for part in msg.iter_parts():
-        disp = part.get("Content-Disposition", "")
-        if "filename=" not in disp:
-            continue
-        payload = part.get_payload(decode=True)
-        if payload is not None:
-            found.append(payload)
+
+    def feed(data):
+        nonlocal pending, in_file, digest, size
+        pending += data
+        while True:
+            if not in_file:
+                split = pending.find(b"\r\n\r\n")
+                if split < 0:
+                    if len(pending) > 65536:
+                        pending = pending[-65536:]
+                    return
+                header = pending[:split]
+                pending = pending[split + 4:]
+                if b"filename=" in header:
+                    in_file = True
+                    digest = hashlib.sha256()
+                    size = 0
+            else:
+                at = pending.find(marker)
+                if at < 0:
+                    keep = len(marker) - 1
+                    if len(pending) > keep:
+                        take = pending[:-keep]
+                        digest.update(take)
+                        size += len(take)
+                        pending = pending[-keep:]
+                    return
+                digest.update(pending[:at])
+                size += at
+                found.append({"sha256": digest.hexdigest(), "size": size})
+                in_file = False
+                digest = None
+                pending = pending[at + 2:]  # drop the CRLF, leave --boundary...
+
+    for chunk in chunks:
+        feed(chunk)
+    feed(b"")
     return found
 
 
 class UploadFixture:
     def __init__(self):
-        self.files = []
+        self.files = []  # {sha256, size} only; bodies are not retained
         self.lock = threading.Lock()
         outer = self
 
@@ -92,7 +134,7 @@ class UploadFixture:
                 path = self.path.split("?")[0]
                 if path == "/received":
                     with outer.lock:
-                        info = [{"sha256": hashlib.sha256(b).hexdigest(), "size": len(b)} for b in outer.files]
+                        info = list(outer.files)
                     self._send(200, json.dumps({"files": info}), "application/json")
                 elif path == "/reset":
                     with outer.lock:
@@ -105,14 +147,29 @@ class UploadFixture:
 
             def do_POST(self):
                 n = int(self.headers.get("Content-Length") or 0)
-                raw = self.rfile.read(n)
                 path = self.path.split("?")[0]
                 if path == "/raw":
-                    blobs = [raw]
+                    digest = hashlib.sha256()
+                    left = n
+                    while left:
+                        chunk = self.rfile.read(min(1024 * 1024, left))
+                        if not chunk:
+                            break
+                        left -= len(chunk)
+                        digest.update(chunk)
+                    info = [{"sha256": digest.hexdigest(), "size": n - left}]
                 else:
-                    blobs = parse_multipart(raw, self.headers.get("Content-Type") or "")
+                    def chunks():
+                        left = n
+                        while left:
+                            chunk = self.rfile.read(min(1024 * 1024, left))
+                            if not chunk:
+                                break
+                            left -= len(chunk)
+                            yield chunk
+                    info = hash_multipart(chunks(), self.headers.get("Content-Type") or "")
                 with outer.lock:
-                    outer.files.extend(blobs)
+                    outer.files.extend(info)
                 self._send(200, b"ok", "text/plain")
 
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
