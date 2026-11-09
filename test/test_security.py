@@ -157,6 +157,23 @@ def test_serve_does_not_log_token():
         check("malformed extension origin -> 403", bad_ext[0] == 403)
         check("real extension origin -> 200", http_raw(port, "GET", "/status", token=FIXTURE, origin=ext)[0] == 200)
         check("OPTIONS -> 403", http_raw(port, "OPTIONS", "/status", token=FIXTURE)[0] == 403)
+        blob_opt = http_raw(port, "OPTIONS", "/blob/abc", token=FIXTURE, origin="http://127.0.0.1:9")
+        check(
+            "blob preflight allows the page origin",
+            blob_opt[0] == 204
+            and b"Access-Control-Allow-Origin: http://127.0.0.1:9" in blob_opt[1]
+            and b"Access-Control-Allow-Headers: X-Token, Content-Type" in blob_opt[1]
+            and b"Access-Control-Allow-Private-Network: true" in blob_opt[1],
+        )
+        check("blob get without token -> 401", http_raw(port, "GET", "/blob/abc", origin="http://127.0.0.1:9")[0] == 401)
+        check(
+            "blob get with web origin still needs a real id -> 404",
+            http_raw(port, "GET", "/blob/not-a-real-id", token=FIXTURE, origin="http://127.0.0.1:9")[0] == 404,
+        )
+        check(
+            "command route still rejects a web origin",
+            http_raw(port, "POST", "/command", token=FIXTURE, origin="http://127.0.0.1:9", content_length="0")[0] == 403,
+        )
         unauth = http_raw(port, "GET", "/status")
         assert_absent(unauth[1], FIXTURE, "401 body")
         neg = http_raw(port, "POST", "/command", token=FIXTURE, content_length="-1")
@@ -288,7 +305,7 @@ for (const [url, ok] of cases) {
 console.log('nav-ok');
 """
     scenarios = """
-const REQUIRED_CONSENT_VERSION = 2;
+const REQUIRED_CONSENT_VERSION = 3;
 function check(defaults, state, expect) {
   const DEFAULTS = defaults;
   const cfg = state;
@@ -296,8 +313,8 @@ function check(defaults, state, expect) {
   if (consentOk() !== expect) process.exit(1);
 }
 check({ consent: false, consentVersion: 0 }, { consent: true, consentVersion: 0 }, false);
-check({ consent: false, consentVersion: 0 }, { consent: true, consentVersion: 2 }, true);
-check({ consent: false, consentVersion: 0 }, { consent: false, consentVersion: 2 }, false);
+check({ consent: false, consentVersion: 0 }, { consent: true, consentVersion: 3 }, true);
+check({ consent: false, consentVersion: 0 }, { consent: false, consentVersion: 3 }, false);
 check({ port: 8765, enabled: true, allowEval: true }, { enabled: true }, true);
 console.log('consent-ok');
 """ % consent
@@ -310,7 +327,7 @@ console.log('consent-ok');
     check("store build requires consent version", "consentVersion === REQUIRED_CONSENT_VERSION" in store)
     check("store defaults withhold consent", "consent: false, consentVersion: 0" in store)
     popup = open(os.path.join(ROOT, "store", "extension", "popup.js"), encoding="utf-8").read()
-    check("popup saves the same consent version", "const CONSENT_VERSION = 2;" in popup and "REQUIRED_CONSENT_VERSION = 2" in store)
+    check("popup saves the same consent version", "const CONSENT_VERSION = 3;" in popup and "REQUIRED_CONSENT_VERSION = 3" in store)
 
 
 def test_password_masking_in_packaged_handlers():
@@ -394,7 +411,7 @@ def test_packaged_store_has_no_remote_code():
         names = z.namelist()
         check("manifest at zip root", "manifest.json" in names)
         manifest = json.loads(z.read("manifest.json"))
-        check("package version 1.0.3", manifest.get("version") == "1.0.3")
+        check("package version 1.0.5", manifest.get("version") == "1.0.5")
         check("no activeTab in store manifest", "activeTab" not in manifest.get("permissions", []))
         joined = []
         for info in z.infolist():
@@ -405,7 +422,7 @@ def test_packaged_store_has_no_remote_code():
                     if needle in text:
                         fail("packaged file contains " + needle)
         blob = "\n".join(joined)
-    check("packaged handlers and consent are present", "function pageGetPage" in blob and "REQUIRED_CONSENT_VERSION = 2" in blob)
+    check("packaged handlers and consent are present", "function pageGetPage" in blob and "function pageUpload" in blob and "REQUIRED_CONSENT_VERSION = 3" in blob)
     check("packaged popup states off-device processing", "off this device" in blob and "ausserhalb des Geräts" in blob)
     check("old absolute no-server sentence is gone", "Nothing is sent to the developer or any server" not in blob)
     dev = open(os.path.join(ROOT, "extension", "background.js"), encoding="utf-8").read()

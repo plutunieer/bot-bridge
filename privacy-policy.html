@@ -22,7 +22,7 @@
 
 <section id="en">
 <h1>Privacy Policy – Bot Bridge</h1>
-<p class="meta">Chrome extension version 1.0.3 · Last updated: 8 November 2026</p>
+<p class="meta">Chrome extension version 1.0.5 · Last updated: 9 November 2026</p>
 
 <h2>Summary</h2>
 <p>The extension's own network traffic goes only to the bridge app you run on your computer, at <code>http://127.0.0.1</code>. The extension does not send page data to the developer. There is no analytics, tracking, advertising, or account.</p>
@@ -30,7 +30,7 @@
 
 <h2>What the extension does</h2>
 <p>Bot Bridge lets your own AI assistant (for example Grok Bot) control your Chrome browser. Your assistant sends commands to a bridge app (<code>bridge.py</code>) on your computer. After you consent, the extension picks those commands up from the bridge and carries them out: opening and switching tabs, reading pages, clicking, typing, scrolling, and taking screenshots.</p>
-<p>Nothing is fetched from the bridge until you tick the notice in the popup. You can switch the extension off, revoke consent, or uninstall it. Revoking consent or switching off stops new commands. An update that changes the notice asks you to agree again.</p>
+<p>Nothing is fetched from the bridge until you tick the notice in the popup. You can switch the extension off, revoke consent, or uninstall it. Revoking consent or switching off stops new commands. Placing named local files into pages is part of that notice (version 3). An update that changes the notice asks you to agree again.</p>
 
 <h2>Data the extension handles</h2>
 <p>Only when a command asks for it, the extension reads data and passes it to the local bridge:</p>
@@ -63,6 +63,11 @@
   <li>other fields, including usernames, one-time codes, and card numbers</li>
   <li>the text of a type command. Your assistant supplies that text so the extension can enter it. The result shown back for a masked field is <code>•••</code>, but the command itself contains what you asked the assistant to type</li>
 </ul>
+
+<h2>Files you name</h2>
+<p>When a command names a file on the computer where the bridge is running, the bridge reads that regular file and the extension places those bytes into a file input or a drop target on the page. This is not a general view of your disk: there is no directory listing, no glob, and no read of a file the command did not name. There is no default size ceiling. The bridge streams the file and Chrome keeps the resulting file on disk-backed blob storage, so a multi-gigabyte video does not have to sit in the bridge as one base64 string. You can set <code>max_upload_bytes</code> in the bridge config to a positive number if you want a ceiling; <code>0</code> or omitting it means unlimited. A transfer that makes no progress for 2 minutes is cancelled. The filename sent to the page is the file's base name, not the full path. A website or Chrome itself can still refuse a file that is larger than that site or that browser build allows.</p>
+<p>A symlink is resolved and both the path you named and the real path are reported back to the assistant. Devices, directories, and other non-regular files are refused. The bridge does not log file contents. After the bytes are in the page, the website can upload them off your device if you submit the form or the page uploads on its own. That is the point of choosing a file. The developer does not receive the file.</p>
+<p>Paths are on the computer running <code>bridge.py</code>. A file that exists only on an assistant's own computer is not on that machine until you copy it there with the file-transfer tool that assistant already uses. This extension is not an automatically connected remote file service.</p>
 
 <h2>What is stored</h2>
 <p>In Chrome (<code>chrome.storage.local</code>) the extension stores only its own settings: the bridge port, the bridge token, the on/off switch, and your consent (including the version of the notice you accepted). The bridge token is a secret that authorizes control of your browser. It is not a password for a website, and it is stored so the extension can reconnect. It is not encrypted by the extension beyond Chrome's local storage and the permissions on the bridge config file.</p>
@@ -102,7 +107,7 @@
 
 <section id="de" lang="de">
 <h1>Datenschutzerklärung – Bot Bridge</h1>
-<p class="meta">Chrome-Erweiterung Version 1.0.3 · Stand: 8. November 2026</p>
+<p class="meta">Chrome-Erweiterung Version 1.0.5 · Stand: 9. November 2026</p>
 
 <h2>Kurz gesagt</h2>
 <p>Der eigene Netzwerkverkehr der Erweiterung geht nur an die Bridge-App, die du auf deinem Computer betreibst, unter <code>http://127.0.0.1</code>. Die Erweiterung sendet Seitendaten nicht an den Entwickler. Keine Analyse, kein Tracking, keine Werbung, kein Konto.</p>
@@ -110,7 +115,7 @@
 
 <h2>Was die Erweiterung tut</h2>
 <p>Bot Bridge erlaubt deinem eigenen KI-Assistenten (zum Beispiel Grok Bot), deinen Chrome-Browser zu bedienen. Dein Assistent schickt Befehle an eine Bridge-App (<code>bridge.py</code>) auf deinem Computer. Nach deiner Zustimmung holt die Erweiterung diese Befehle ab und führt sie aus: Tabs öffnen und wechseln, Seiten lesen, klicken, tippen, scrollen und Screenshots machen.</p>
-<p>Es wird nichts von der Bridge geholt, bevor du den Hinweis im Popup ankreuzt. Du kannst die Erweiterung ausschalten, die Zustimmung widerrufen oder sie deinstallieren. Widerruf oder Ausschalten stoppt neue Befehle. Ein Update, das den Hinweis ändert, verlangt eine erneute Zustimmung.</p>
+<p>Es wird nichts von der Bridge geholt, bevor du den Hinweis im Popup ankreuzt. Du kannst die Erweiterung ausschalten, die Zustimmung widerrufen oder sie deinstallieren. Widerruf oder Ausschalten stoppt neue Befehle. Benannte lokale Dateien in Seiten zu setzen gehört zu diesem Hinweis (Version 3). Ein Update, das den Hinweis ändert, verlangt eine erneute Zustimmung.</p>
 
 <h2>Welche Daten die Erweiterung verarbeitet</h2>
 <p>Nur wenn ein Befehl es verlangt, liest die Erweiterung Daten und gibt sie an die lokale Bridge weiter:</p>
@@ -143,6 +148,11 @@
   <li>andere Felder, inklusive Benutzernamen, Einmalcodes und Kartennummern</li>
   <li>den Text eines Tipp-Befehls. Dein Assistent liefert diesen Text, damit die Erweiterung ihn eintragen kann. Das zurückgegebene Resultat eines maskierten Feldes ist <code>•••</code>, der Befehl selbst enthält aber, was du tippen lassen wolltest</li>
 </ul>
+
+<h2>Dateien, die du nennst</h2>
+<p>Wenn ein Befehl eine Datei auf dem Computer nennt, auf dem die Bridge läuft, liest die Bridge diese reguläre Datei und die Erweiterung setzt die Bytes in ein Dateifeld oder ein Drop-Ziel auf der Seite. Das ist keine allgemeine Sicht auf deine Festplatte: kein Verzeichnislisting, kein Glob und kein Lesen einer Datei, die der Befehl nicht nennt. Es gibt keine Standard-Grössengrenze. Die Bridge streamt die Datei, und Chrome hält die entstandene Datei in einem Blob, der auf die Festplatte ausgelagert werden kann, statt sie als einen Base64-String im Speicher zu halten. <code>max_upload_bytes</code> in der Bridge-Konfiguration setzt eine optionale Obergrenze; <code>0</code> oder das Weglassen bedeutet unbegrenzt. Eine Übertragung ohne Fortschritt für 2 Minuten wird abgebrochen. Der Dateiname, der an die Seite geht, ist der Basisname, nicht der volle Pfad. Eine Website oder Chrome selbst kann eine Datei trotzdem ablehnen, wenn sie grösser ist, als diese Seite oder dieser Browser zulässt.</p>
+<p>Ein Symlink wird aufgelöst, und sowohl der genannte Pfad als auch der reale Pfad werden dem Assistenten gemeldet. Geräte, Verzeichnisse und andere nicht-reguläre Dateien werden abgelehnt. Die Bridge schreibt keine Dateiinhalte ins Log. Sobald die Bytes in der Seite sind, kann die Website sie ausserhalb deines Geräts hochladen, wenn du das Formular sendest oder die Seite selbst hochlädt. Genau dafür wählt man eine Datei. Der Entwickler erhält die Datei nicht.</p>
+<p>Pfade liegen auf dem Computer, auf dem <code>bridge.py</code> läuft. Eine Datei, die nur auf dem Computer des Assistenten existiert, ist dort nicht, bis du sie mit dem Dateitransfer kopierst, den dieser Assistent bereits benutzt. Diese Erweiterung ist kein automatisch verbundener Ferndienst für Dateien.</p>
 
 <h2>Was gespeichert wird</h2>
 <p>In Chrome (<code>chrome.storage.local</code>) speichert die Erweiterung nur ihre eigenen Einstellungen: Bridge-Port, Bridge-Token, Ein/Aus-Schalter und deine Zustimmung (inklusive der Version des Hinweises, dem du zugestimmt hast). Der Bridge-Token ist ein Geheimnis, das die Steuerung deines Browsers erlaubt. Er ist kein Website-Passwort. Er wird gespeichert, damit die Erweiterung sich wieder verbinden kann. Die Erweiterung verschlüsselt ihn nicht über Chromes lokalen Speicher und die Dateirechte der Bridge-Konfiguration hinaus.</p>
