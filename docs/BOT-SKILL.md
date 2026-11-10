@@ -11,6 +11,8 @@ Every command below runs on the **user's registered computer** via your Shell to
 `$GBB` below = the folder where the user put `bot-bridge` (e.g. `~/bot-bridge`, on Windows `%USERPROFILE%\bot-bridge`). Older installs may use a folder named `grok-chrome-bridge`.
 Python: `python3` on macOS/Linux, `py -3` (or `python`) on Windows.
 
+Commands the assistant should send, including `click_upload`, dialogs, and downloads, are in `AGENTS.md`.
+
 ## 1. One-time setup (only if not installed yet)
 
 0. If the extension is available in the Chrome Web Store, the user installs it from there (one click) and only needs the bridge files; in the store build they must also tick the consent box in the popup.

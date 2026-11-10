@@ -21,12 +21,15 @@ two commands into a service log.
 """
 import argparse
 import base64
+import errno
 import hashlib
 import json
 import mimetypes
 import os
 import queue
 import secrets
+import shutil
+import socket
 import stat
 import sys
 import threading
@@ -36,7 +39,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 
-VERSION = "1.0.5"
+VERSION = "1.0.6"
 DEFAULT_PORT = 8765
 _HOME = os.path.expanduser("~")
 CONFIG_DIR = os.path.join(_HOME, ".bot-bridge")
@@ -293,6 +296,106 @@ def release_staged(files):
             UPLOADS.drop(item["id"])
 
 
+def _hash_session(sess):
+    """Hash a staged file from its open descriptor. Constant memory. No path in errors."""
+    try:
+        os.lseek(sess.fd, 0, os.SEEK_SET)
+    except OSError:
+        return False
+    digest = hashlib.sha256()
+    remaining = sess.size
+    while remaining:
+        chunk = os.read(sess.fd, min(UPLOAD_CHUNK, remaining))
+        if not chunk:
+            break
+        digest.update(chunk)
+        remaining -= len(chunk)
+    if remaining:
+        return False
+    sess.sha256 = digest.hexdigest()
+    sess.bytes_sent = sess.size
+    sess.done = True
+    return True
+
+
+def _safe_cmd(cmd):
+    if not isinstance(cmd, str) or not cmd or len(cmd) > 40:
+        return "?"
+    for ch in cmd:
+        if ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-":
+            return "?"
+    return cmd
+
+
+def _log_outcome(cmd, ok, error=None):
+    """One stderr line: time, command name, ok or a short error. Never the token or file bytes."""
+    status = "ok"
+    if not ok:
+        status = "error " + (error or "failed")
+        status = " ".join(status.split())
+        token = STATE.token if STATE is not None and isinstance(getattr(STATE, "token", None), str) else ""
+        if token and token in status:
+            status = status.replace(token, "[redacted]")
+        status = status[:240]
+    line = "%s command %s %s\n" % (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), _safe_cmd(cmd), status)
+    try:
+        sys.stderr.write(line)
+        sys.stderr.flush()
+    except (BrokenPipeError, ConnectionResetError, OSError):
+        pass
+
+
+_PIPE_ERRNOS = {errno.EPIPE, errno.ECONNRESET, errno.ECONNABORTED}
+
+
+def _client_gone(exc):
+    if isinstance(exc, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, TimeoutError, socket.timeout)):
+        return True
+    return isinstance(exc, OSError) and getattr(exc, "errno", None) in _PIPE_ERRNOS
+
+
+def _place_download(body, out):
+    """If Chrome refused a custom download folder, copy the finished file into the requested one.
+
+    The extension reports the path Chrome actually wrote. The chosen folder is the
+    caller's, and only the file's base name is used.
+    """
+    if not isinstance(body, dict) or not isinstance(out, dict):
+        return out
+    result = out.get("result")
+    download = result.get("download") if isinstance(result, dict) else None
+    dest_dir = body.get("download_dir")
+    if not isinstance(download, dict) or download.get("folder_control") is not False:
+        return out
+    src = download.get("path")
+    if not isinstance(src, str) or not isinstance(dest_dir, str) or not src or not dest_dir:
+        return out
+    try:
+        dest_dir = os.path.realpath(os.path.expanduser(dest_dir))
+        src_real = os.path.realpath(src)
+    except OSError:
+        return out
+    if not os.path.isdir(dest_dir) or not os.path.isfile(src_real):
+        return out
+    name = os.path.basename(src_real)
+    if not name or name in (".", ".."):
+        return out
+    dest = os.path.join(dest_dir, name)
+    if os.path.dirname(os.path.realpath(dest)) != dest_dir:
+        return out
+    if src_real == os.path.realpath(dest):
+        download["path"] = dest
+        return out
+    try:
+        shutil.copyfile(src_real, dest)
+    except OSError:
+        return out
+    download["browser_path"] = src_real
+    download["path"] = dest
+    download["copied"] = True
+    return out
+
+
 def _upload_public_meta(files):
     meta = []
     for item in files:
@@ -338,20 +441,40 @@ class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
-        # Request line only. Never log headers or bodies: they carry the token and page data.
+        # Request line only, and only when asked. Never log headers or bodies:
+        # they carry the token and page data. Command outcomes are logged separately.
         if os.environ.get("GBB_VERBOSE"):
-            sys.stderr.write("[bridge] " + (fmt % args) + "\n")
+            try:
+                sys.stderr.write("[bridge] " + (fmt % args) + "\n")
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+
+    def handle_error(self, request, client_address):
+        # A client that gave up (upload timeout, closed tab) must not dump a traceback.
+        err = sys.exc_info()[1]
+        if _client_gone(err):
+            return
+        try:
+            super().handle_error(request, client_address)
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            return
 
     # --- helpers
     def _send(self, code, obj=None):
         body = b"" if obj is None else json.dumps(obj).encode("utf-8")
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        if body:
-            self.wfile.write(body)
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            if body:
+                self.wfile.write(body)
+        except Exception as exc:
+            if _client_gone(exc):
+                self.close_connection = True
+                return
+            raise
 
     def _authorized(self, allow_web_origin=False):
         # DNS-rebinding protection: only accept a loopback Host, exact name, not a suffix.
@@ -543,10 +666,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, {"ok": False, "error": 'body must be JSON like {"cmd":"list_tabs"}'})
                 return
             if not self._connected():
+                _log_outcome(body.get("cmd"), False, "extension not connected")
                 self._send(503, {"ok": False, "error": "extension not connected (is Chrome open and the extension enabled with the right port/token?)"})
                 return
             staged = None
-            if body.get("cmd") == "upload":
+            if body.get("cmd") in ("upload", "click_upload"):
                 # Never accept bytes from the caller. Open only named regular files,
                 # and only after the extension is connected, so a refused command
                 # does not touch the disk. Bytes are streamed later on GET /blob/<id>.
@@ -555,19 +679,12 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     staged = stage_upload_files(body, configured_upload_limit())
                 except ValueError as e:
+                    _log_outcome(body.get("cmd"), False, str(e))
                     self._send(400, {"ok": False, "error": str(e)})
                     return
                 body = dict(body)
                 body["files"] = staged
-            if body.get("cmd") == "upload":
-                if body.get("timeout") is None:
-                    timeout = UPLOAD_DEFAULT_WAIT
-                else:
-                    timeout = float(body.get("timeout"))
-                    timeout = max(1.0, min(timeout, UPLOAD_DEFAULT_WAIT))
-            else:
-                timeout = float(body.get("timeout") or DEFAULT_TIMEOUT)
-                timeout = max(1.0, min(timeout, 300.0))
+            timeout = _command_timeout(body)
             cid = uuid.uuid4().hex
             ev = threading.Event()
             with STATE.lock:
@@ -611,24 +728,39 @@ class Handler(BaseHTTPRequestHandler):
                 release_staged(staged)
                 reason = "stalled" if stalled else "timeout"
                 # Sessions were dropped above; the error string must not include paths or bytes.
-                self._send(504, {"ok": False, "error": "upload %s" % reason if body.get("cmd") == "upload" else "timeout after %.0fs waiting for the extension" % timeout})
+                err = "upload %s" % reason if body.get("cmd") in ("upload", "click_upload") else "timeout after %.0fs waiting for the extension" % timeout
+                _log_outcome(body.get("cmd"), False, err)
+                self._send(504, {"ok": False, "error": err})
                 return
             res = w["result"]
             out = {"ok": bool(res.get("ok")), "cmd": body.get("cmd")}
             if res.get("ok"):
                 out["result"] = res.get("result") if isinstance(res.get("result"), dict) else {"value": res.get("result")}
                 if staged is not None:
-                    incomplete = [item for item in staged if not (UPLOADS.get(item["id"]) and UPLOADS.get(item["id"]).done)]
-                    if incomplete:
-                        release_staged(staged)
-                        self._send(502, {"ok": False, "error": "upload transfer did not finish"})
-                        return
+                    delivery = out["result"].get("delivery")
+                    if delivery == "cdp":
+                        # Chrome read the paths itself. Hash here so the result still has a sha256.
+                        failed = [item for item in staged if not (UPLOADS.get(item["id"]) and _hash_session(UPLOADS.get(item["id"])))]
+                        if failed:
+                            release_staged(staged)
+                            _log_outcome(body.get("cmd"), False, "upload hash failed")
+                            self._send(502, {"ok": False, "error": "upload hash failed"})
+                            return
+                    else:
+                        incomplete = [item for item in staged if not (UPLOADS.get(item["id"]) and UPLOADS.get(item["id"]).done)]
+                        if incomplete:
+                            release_staged(staged)
+                            _log_outcome(body.get("cmd"), False, "upload transfer did not finish")
+                            self._send(502, {"ok": False, "error": "upload transfer did not finish"})
+                            return
                     out["result"]["files"] = _upload_public_meta(staged)
                     out["result"].pop("data_base64", None)
             else:
                 out["error"] = res.get("error") or "unknown error"
             release_staged(staged)
             out = _save_screenshot_if_requested(body, out)
+            out = _place_download(body, out)
+            _log_outcome(body.get("cmd"), out.get("ok"), None if out.get("ok") else out.get("error"))
             self._send(200, out)
         else:
             self._send(404, {"ok": False, "error": "not found"})
@@ -665,16 +797,28 @@ def serve(port):
         srv.server_close()
 
 
+def _command_timeout(body):
+    """How long /command waits. The CLI uses this plus a margin, so it cannot hang up first."""
+    if not isinstance(body, dict):
+        return float(DEFAULT_TIMEOUT)
+    long_upload = body.get("cmd") in ("upload", "click_upload")
+    cap = float(UPLOAD_DEFAULT_WAIT if long_upload else 300)
+    default = float(UPLOAD_DEFAULT_WAIT if long_upload else DEFAULT_TIMEOUT)
+    if body.get("download_dir") and not long_upload:
+        default = max(default, 120.0)
+        cap = max(cap, 300.0)
+    if body.get("timeout") is None:
+        return default
+    try:
+        asked = float(body.get("timeout"))
+    except (TypeError, ValueError):
+        return default
+    return max(1.0, min(asked, cap))
+
+
 def _client_timeout(body):
-    """How long the CLI waits. Uploads default to the bridge's long wait."""
-    if isinstance(body, dict) and body.get("cmd") == "upload":
-        if body.get("timeout"):
-            try:
-                return float(body["timeout"]) + 30
-            except (TypeError, ValueError):
-                return UPLOAD_DEFAULT_WAIT + 30
-        return UPLOAD_DEFAULT_WAIT + 30
-    return 330
+    """Stay connected until the bridge has finished, including a long upload."""
+    return _command_timeout(body) + 60
 
 
 def _call(method, path, body=None, timeout=330):
@@ -687,9 +831,17 @@ def _call(method, path, body=None, timeout=330):
         with urlrequest.urlopen(req, timeout=timeout) as r:
             raw = r.read()
     except HTTPError as e:
-        raw = e.read()
+        try:
+            raw = e.read()
+        except (BrokenPipeError, ConnectionResetError, TimeoutError, socket.timeout, OSError):
+            return {"ok": False, "error": "the bridge closed the connection before the result was read"}
+    except (TimeoutError, socket.timeout):
+        return {"ok": False, "error": "timed out waiting for the bridge. An upload waits for the command timeout; the extension did not answer in that time."}
     except URLError as e:
-        return {"ok": False, "error": "bridge not reachable on port %s (%s). Start it with: python3 bridge.py serve" % (cfg["port"], e.reason)}
+        reason = getattr(e, "reason", e)
+        if _client_gone(reason) or isinstance(reason, (TimeoutError, socket.timeout)):
+            return {"ok": False, "error": "timed out waiting for the bridge. An upload waits for the command timeout; the extension did not answer in that time."}
+        return {"ok": False, "error": "bridge not reachable on port %s (%s). Start it with: python3 bridge.py serve" % (cfg["port"], reason)}
     try:
         return json.loads(raw.decode("utf-8")) if raw else {"ok": True}
     except Exception:

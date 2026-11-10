@@ -287,10 +287,22 @@ def test_stream_limit_and_cancel():
             fail("stream test log contained file bytes")
 
 
+def test_client_waits_longer_than_the_bridge():
+    home = tempfile.mkdtemp(prefix="bbwait-")
+    mod = load_bridge(home)
+    check("upload client outlives the bridge", mod._client_timeout({"cmd": "upload"}) == mod._command_timeout({"cmd": "upload"}) + 60)
+    check("click_upload uses the upload wait", mod._command_timeout({"cmd": "click_upload", "timeout": 10}) == 10)
+    check("click_upload client keeps a margin", mod._client_timeout({"cmd": "click_upload", "timeout": 10}) == 70)
+    check("ordinary command stays short", mod._command_timeout({"cmd": "ping"}) == mod.DEFAULT_TIMEOUT)
+    check("broken pipe is a quiet client error", mod._client_gone(BrokenPipeError()) and mod._client_gone(ConnectionResetError()))
+    check("other errors are not treated as a hung-up client", not mod._client_gone(ValueError("no")))
+
+
 def main():
     test_stage_rules()
     test_refused_command_does_not_read()
     test_stream_limit_and_cancel()
+    test_client_waits_longer_than_the_bridge()
     print("upload constraint checks passed")
 
 
