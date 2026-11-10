@@ -33,5 +33,33 @@ async function refresh() {
 $("save").addEventListener("click", save);
 $("enabled").addEventListener("change", save);
 $("allowEval").addEventListener("change", save);
+/*DEVCONSENT-START*/
+const CONSENT_VERSION = 4;
+function consentCurrent(s) { return !!s.consent && s.consentVersion === CONSENT_VERSION; }
+function showConsent(ok) {
+  const box = document.getElementById("consentBox");
+  const line = document.getElementById("consentedLine");
+  if (!box || !line) return;
+  box.style.display = ok ? "none" : "block";
+  line.style.display = ok ? "block" : "none";
+  const boxInput = document.getElementById("consent");
+  if (boxInput) boxInput.checked = !!ok;
+}
+const consentInput = document.getElementById("consent");
+if (consentInput) consentInput.addEventListener("change", async () => {
+  const agreed = consentInput.checked;
+  await chrome.storage.local.set({ consent: agreed, consentVersion: agreed ? CONSENT_VERSION : 0 });
+  showConsent(agreed);
+  setTimeout(refresh, 600);
+});
+const revoke = document.getElementById("revoke");
+if (revoke) revoke.addEventListener("click", async (e) => {
+  e.preventDefault();
+  await chrome.storage.local.set({ consent: false, consentVersion: 0 });
+  showConsent(false);
+  setTimeout(refresh, 600);
+});
+chrome.storage.local.get({ consent: false, consentVersion: 0 }).then((s) => showConsent(consentCurrent(s)));
+/*DEVCONSENT-END*/
 load();
 setInterval(refresh, 1500);

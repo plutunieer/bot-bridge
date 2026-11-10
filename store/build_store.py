@@ -8,7 +8,8 @@ Store build differences (Chrome Web Store / MV3 remote-code policy):
     action runs code that ships inside the extension package; the bridge only
     sends data (command name, URL, selector, text), never code.
   * `activeTab` permission dropped (redundant with the host permission).
-  * version 1.0.5, store-oriented description, popup help line, en/de locales, consent screen.
+  * version 1.0.6, store-oriented description, popup help line, en/de locales, consent screen.
+  * no debugger permission. Uploads are read by the service worker, not by the page.
 """
 import json, os, re, shutil, sys, zipfile
 
@@ -17,7 +18,7 @@ ROOT = os.path.dirname(HERE)
 SRC = os.path.join(ROOT, "extension")
 OUT = os.path.join(HERE, "extension")
 DIST = os.path.join(ROOT, "dist")
-VERSION = "1.0.5"
+VERSION = "1.0.6"
 
 def rep(s, old, new, count=1):
     if old not in s:
@@ -48,8 +49,10 @@ json.dump(m, open(os.path.join(OUT, "manifest.json"), "w"), indent=2)
 
 # ---- background.js
 p = os.path.join(OUT, "background.js"); s = open(p).read()
-s = rep(s, 'const DEFAULTS = { port: 8765, token: "", enabled: true, allowEval: true };',
-           'const DEFAULTS = { port: 8765, token: "", enabled: true };')
+s = rep(s, "const DEV_DEBUGGER = true;", "const DEV_DEBUGGER = false;")
+s = rep(s, "const REQUIRED_CONSENT_VERSION = 4;", "const REQUIRED_CONSENT_VERSION = 3;")
+s = rep(s, 'const DEFAULTS = { port: 8765, token: "", enabled: true, allowEval: true, consent: false, consentVersion: 0, dialogPolicy: "" };',
+           'const DEFAULTS = { port: 8765, token: "", enabled: true, consent: false, consentVersion: 0, dialogPolicy: "" };')
 s = re.sub(r"\nfunction pageEval\(expr\) \{.*?\n\}\n", "\n", s, flags=re.S)
 s = re.sub(r'\n    case "eval": \{.*?\n    \}\n', "\n", s, flags=re.S)
 s = rep(s, "back, forward, reload, eval\");", "back, forward, reload\");")
@@ -57,10 +60,12 @@ open(p, "w").write(s)
 
 # ---- popup
 p = os.path.join(OUT, "popup.html"); s = open(p).read()
+s = re.sub(r"<!--CONSENT-->.*?<!--/CONSENT-->\n?", "<!--CONSENT-->\n", s, flags=re.S)
 s = re.sub(r"<!--EVAL-->.*?<!--/EVAL-->\n", "", s, flags=re.S)
 s = rep(s, "<!--STORE-NOTE-->", '      <p>Requires the free bridge app on this computer · Benötigt die Bridge-App: <a href="https://github.com/plutunieer/bot-bridge#readme" target="_blank" rel="noopener">github.com/plutunieer/bot-bridge</a></p>\n      <p><a href="https://plutunieer.github.io/bot-bridge/privacy-policy.html" target="_blank" rel="noopener">Privacy policy · Datenschutz</a></p>')
 open(p, "w").write(s)
 p = os.path.join(OUT, "popup.js"); s = open(p).read()
+s = re.sub(r"/\*DEVCONSENT-START\*/.*?/\*DEVCONSENT-END\*/\n?", "", s, flags=re.S)
 s = rep(s, 'enabled: true, allowEval: true });', 'enabled: true });')
 s = rep(s, '  $("allowEval").checked = s.allowEval;\n', '')
 s = rep(s, '    allowEval: $("allowEval").checked,\n', '')
@@ -69,8 +74,6 @@ open(p, "w").write(s)
 
 # ---- prominent disclosure + affirmative consent (CWS User Data Policy)
 p = os.path.join(OUT, "background.js"); s = open(p).read()
-s = rep(s, 'const DEFAULTS = { port: 8765, token: "", enabled: true };',
-           'const DEFAULTS = { port: 8765, token: "", enabled: true, consent: false, consentVersion: 0 };')
 s = rep(s, 'chrome.runtime.onInstalled.addListener(start);',
            'chrome.runtime.onInstalled.addListener((d) => {\n'
            '  // first install: open the setup page so the user sees the disclosure and can consent\n'

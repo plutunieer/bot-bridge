@@ -50,6 +50,18 @@
   </header>
   <main>
 <!--CONSENT-->
+    <div id="consentBox" class="consent">
+      <b class="t">Read before connecting · Bitte vor dem Verbinden lesen</b>
+      <ul>
+        <li>This unpacked build can attach Chrome's debugger. Your assistant can then set files by path, click a site's Upload button without the system file dialog, click and type with trusted input, answer alert, confirm, and prompt, and save downloads into a folder you name.</li>
+        <li>The extension sends data only to <b>127.0.0.1</b>, not to the developer. Your assistant, and any site you upload to, may process it <b>off this device</b>.</li>
+        <li>Password fields are masked only in page reads. Screenshots, other fields, and typed text are not.</li>
+        <li>Diese entpackte Version kann Chromes Debugger anhängen. Die Erweiterung sendet Daten nur an <b>127.0.0.1</b>. Der Assistent kann sie <b>ausserhalb des Geräts</b> verarbeiten.</li>
+      </ul>
+      <label><input id="consent" type="checkbox"> I understand and agree · Ich stimme zu</label>
+    </div>
+    <div id="consentedLine" class="consented" style="display:none">Consent given · Zugestimmt. Your assistant may process data off-device. <a href="#" id="revoke">Revoke · Widerrufen</a></div>
+<!--/CONSENT-->
     <div id="status" class="status">…</div>
     <div class="grid">
       <div><label class="f" for="port">Port</label><input id="port" type="number" min="1" max="65535" value="8765"></div>

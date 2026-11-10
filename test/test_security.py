@@ -54,19 +54,24 @@ def listeners(port):
     return found
 
 
-def http_raw(port, method, path, token=None, host=None, origin=None, content_length=None, timeout=3):
+def http_raw(port, method, path, token=None, host=None, origin=None, content_length=None, body=None, timeout=3):
     s = socket.create_connection(("127.0.0.1", port), timeout=timeout)
     try:
         host = f"127.0.0.1:{port}" if host is None else host
+        raw = body.encode() if isinstance(body, str) else body
         lines = [f"{method} {path} HTTP/1.1", f"Host: {host}"]
         if token is not None:
             lines.append(f"X-Token: {token}")
         if origin is not None:
             lines.append(f"Origin: {origin}")
-        if content_length is not None:
+        if raw is not None:
+            lines.append(f"Content-Length: {len(raw)}")
+        elif content_length is not None:
             lines.append(f"Content-Length: {content_length}")
         lines += ["Connection: close", "", ""]
         s.sendall("\r\n".join(lines).encode())
+        if raw:
+            s.sendall(raw)
         s.settimeout(timeout)
         data = b""
         try:
@@ -189,6 +194,12 @@ def test_serve_does_not_log_token():
         dir_mode = stat.S_IMODE(os.stat(cfg_dir).st_mode)
         check("config file mode 600", mode == 0o600)
         check("config directory mode 700", dir_mode == 0o700)
+        ping = http_raw(port, "POST", "/command", token=FIXTURE, body='{"cmd":"ping"}')
+        check("disconnected command is 503", ping[0] == 503)
+        # Close during the response so a vanished client does not traceback.
+        drop = socket.create_connection(("127.0.0.1", port), timeout=3)
+        drop.sendall(("GET /status HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nX-Token: %s\r\nConnection: close\r\n\r\n" % (port, FIXTURE)).encode())
+        drop.close()
     finally:
         proc.terminate()
         try:
@@ -205,6 +216,8 @@ def test_serve_does_not_log_token():
     check("startup says the token is not printed", "not printed on startup" in stdout)
     check("startup does not use the old Token label", "Token:" not in stdout)
     check("verbose request log has no secret", FIXTURE not in stderr)
+    check("command log names the command and not the token", "command ping error" in stderr and FIXTURE not in stderr)
+    check("closed client does not traceback", "Traceback" not in stderr)
 
     shown = subprocess.run([PY, BRIDGE, "token"], env=env, capture_output=True, text=True)
     check("token command returns the token", shown.stdout.strip() == FIXTURE)
@@ -328,6 +341,13 @@ console.log('consent-ok');
     check("store defaults withhold consent", "consent: false, consentVersion: 0" in store)
     popup = open(os.path.join(ROOT, "store", "extension", "popup.js"), encoding="utf-8").read()
     check("popup saves the same consent version", "const CONSENT_VERSION = 3;" in popup and "REQUIRED_CONSENT_VERSION = 3" in store)
+    dev = open(os.path.join(ROOT, "extension", "background.js"), encoding="utf-8").read()
+    dev_popup = open(os.path.join(ROOT, "extension", "popup.js"), encoding="utf-8").read()
+    dev_manifest = json.load(open(os.path.join(ROOT, "extension", "manifest.json"), encoding="utf-8"))
+    check("developer build requests debugger", "debugger" in dev_manifest.get("permissions", []))
+    check("developer consent is version 4", "REQUIRED_CONSENT_VERSION = 4" in dev and "const CONSENT_VERSION = 4;" in dev_popup)
+    page_upload = extract_function(store, "pageUpload")
+    check("page upload does not fetch loopback", "127.0.0.1" not in page_upload and "fetch(" not in page_upload)
 
 
 def test_password_masking_in_packaged_handlers():
@@ -411,7 +431,9 @@ def test_packaged_store_has_no_remote_code():
         names = z.namelist()
         check("manifest at zip root", "manifest.json" in names)
         manifest = json.loads(z.read("manifest.json"))
-        check("package version 1.0.5", manifest.get("version") == "1.0.5")
+        check("package version 1.0.6", manifest.get("version") == "1.0.6")
+        check("store build has no debugger permission", "debugger" not in manifest.get("permissions", []))
+        check("store build has no downloads permission", "downloads" not in manifest.get("permissions", []))
         check("no activeTab in store manifest", "activeTab" not in manifest.get("permissions", []))
         joined = []
         for info in z.infolist():
